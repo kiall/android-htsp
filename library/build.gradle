@@ -1,0 +1,53 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion project.ext.compileSdkVersion
+    buildToolsVersion project.ext.buildToolsVersion
+
+    defaultConfig {
+        minSdkVersion project.ext.minSdkVersion
+        targetSdkVersion project.ext.targetSdkVersion
+
+        versionCode System.getenv("APP_VERSION_CODE") as Integer ?: 0
+        versionName gitVersionName
+
+        setProperty("archivesBaseName", applicationId)
+    }
+
+    signingConfigs {
+        if (rootProject.file("keystore.properties").exists()) {
+            def keystoreProperties = new Properties()
+            keystoreProperties.load(new FileInputStream(rootProject.file("keystore.properties")))
+
+            release {
+                storeFile new File(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            versionNameSuffix "-SNAPSHOT"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            if (signingConfigs.hasProperty("release")) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    lintOptions {
+        disable 'GoogleAppIndexingWarning'
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.android.support:appcompat-v7:25.1.0'
+}
