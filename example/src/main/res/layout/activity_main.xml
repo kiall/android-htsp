@@ -28,6 +28,12 @@
                 android:text="Connect"
                 android:onClick="connect"/>
 
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Auth"
+                android:onClick="authenticate"/>
+
         </LinearLayout>
 
         <LinearLayout
@@ -49,7 +55,8 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fillViewport="false">
+        android:fillViewport="false"
+        android:id="@+id/scrollView">
 
         <TextView
             android:layout_width="fill_parent"

@@ -7,7 +7,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.2.3'
-        classpath 'com.novoda:bintray-release:0.3.4'
+        classpath 'com.novoda:bintray-release:0.4.0'
         classpath 'org.ajoberstar:grgit:1.4.+'
     }
 }
@@ -25,10 +25,10 @@ allprojects {
         git = Grgit.open()
         gitVersionName = "${git.describe()}"
 
-        releaseRepoName = 'exoplayer'
+        releaseRepoName = 'htsp'
         releaseUserOrg = 'kiall'
         releaseGroupId = 'ie.macinnes.htsp'
-        releaseVersion = '0.0.0'
+        releaseVersion = '0.0.0a5'
         releaseWebsite = 'https://github.com/kiall/android-htsp'
     }
 }

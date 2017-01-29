@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.novoda.bintray-release'
 
 android {
     compileSdkVersion project.ext.compileSdkVersion
@@ -11,7 +12,7 @@ android {
         versionCode System.getenv("APP_VERSION_CODE") as Integer ?: 0
         versionName gitVersionName
 
-        setProperty("archivesBaseName", applicationId)
+//        setProperty("archivesBaseName", "ie.macinnes.htsp")
     }
 
     signingConfigs {
@@ -44,6 +45,16 @@ android {
 
     lintOptions {
         disable 'GoogleAppIndexingWarning'
+    }
+
+    publish {
+        repoName = project.ext.releaseRepoName
+        userOrg = project.ext.releaseUserOrg
+        groupId = project.ext.releaseGroupId
+        website = project.ext.releaseWebsite
+        publishVersion = project.ext.releaseVersion
+        artifactId = 'android-htsp'
+        desc = 'Android HTSP Library'
     }
 }
 
