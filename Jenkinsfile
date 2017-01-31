@@ -4,14 +4,32 @@ node ('android-slave') {
     stage('Preparation') {
         step([$class: 'WsCleanup'])
         checkout scm
+        sh 'env'
     }
 
     def common = load 'Jenkinsfile.groovy'
 
-    stage('Assemble') {
-        common.assemble()
+    stage('Build Library') {
+        common.assemble("library")
     }
+
+    stage('Build Example') {
+        common.assemble("example")
+    }
+
     stage('Lint') {
-        common.lint()
+        parallel (
+            library: {
+                common.lint("library")
+            },
+            example: {
+                common.lint("example")
+            }
+        )
     }
+
+    stage('Archive') {
+        common.archive()
+    }
+
 }
