@@ -32,4 +32,15 @@ node ('android-slave') {
         common.archive()
     }
 
+    stage('Publish') {
+        parallel (
+            bintray: {
+                common.publishAarToBinTray()
+            },
+            github: {
+                common.publishAarToGitHub()
+            }
+        )
+    }
+
 }

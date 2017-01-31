@@ -1,17 +1,17 @@
 import jenkins.model.*
 
-def assemble() {
-    sh './gradlew assemble'
+def assemble(String module) {
+    sh "./gradlew ${module}:assemble"
+}
+
+def lint(String module) {
+    sh "./gradlew ${module}:lint"
+    androidLint canComputeNew: false, canRunOnFailed: true, defaultEncoding: '', healthy: '', pattern: '**/lint-results*.xml', unHealthy: ''
 }
 
 def archive() {
     archiveArtifacts artifacts: 'library/build/outputs/aar/*.aar', fingerprint: true
-    stash includes: 'library/build/outputs/aar/*.aar', name: 'built-aar'
-}
-
-def lint() {
-    sh './gradlew lint'
-    androidLint canComputeNew: false, canRunOnFailed: true, defaultEncoding: '', healthy: '', pattern: '**/lint-results*.xml', unHealthy: ''
+    archiveArtifacts artifacts: 'example/build/outputs/apk/*.apk', fingerprint: true
 }
 
 def publishAarToBinTray() {
@@ -35,33 +35,6 @@ def publishAarToGitHub() {
         sh(script: "github-release release --user kiall --repo android-htsp --tag ${tagName} --name ${tagName} --description '${changeLog}'")
         sh(script: "github-release upload --user kiall --repo android-htsp --tag ${tagName} --name ie.macinnes.htsp_${tagName}-release.aar --file library/build/outputs/aar/library-release.aar")
     }
-}
-
-
-def withGithubNotifier(Closure<Void> job) {
-   notifyGithub('STARTED')
-   catchError {
-      currentBuild.result = 'SUCCESS'
-      job()
-   }
-   notifyGithub(currentBuild.result)
-}
- 
-def notifyGithub(String result) {
-   switch (result) {
-      case 'STARTED':
-         setGitHubPullRequestStatus(context: env.JOB_NAME, message: "Build started", state: 'PENDING')
-         break
-      case 'FAILURE':
-         setGitHubPullRequestStatus(context: env.JOB_NAME, message: "Build error", state: 'FAILURE')
-         break
-      case 'UNSTABLE':
-         setGitHubPullRequestStatus(context: env.JOB_NAME, message: "Build unstable", state: 'FAILURE')
-         break
-      case 'SUCCESS':
-         setGitHubPullRequestStatus(context: env.JOB_NAME, message: "Build finished successfully", state: 'SUCCESS')
-         break
-   }
 }
 
 return this;
