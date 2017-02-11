@@ -19,7 +19,7 @@ def publishAarToBinTray() {
     def changeLog = sh(returnStdout: true, script: "./tools/generate-changelog").trim().replaceAll(~/'/, "\'")
 
     withCredentials([
-        [$class: 'UsernamePasswordMultiBinding', credentialsId: 'kiall-bintray', usernameVariable: 'BINTRAY_USER', passwordVariable: 'BINTRAY_KEY'],
+        [$class: 'UsernamePasswordMultiBinding', credentialsId: 'bintray-kiall', usernameVariable: 'BINTRAY_USER', passwordVariable: 'BINTRAY_KEY'],
     ]) {
         sh './gradlew bintrayUpload -PbintrayUser=$BINTRAY_USER -PbintrayKey=$BINTRAY_KEY -PdryRun=false'
     }
