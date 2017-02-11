@@ -276,9 +276,6 @@ public class HtspConnection implements Runnable {
             Log.v(TAG, "Finishing SocketChannel Connection");
         socketChannel.finishConnect();
 
-//        Log.d(TAG, "Registering OP_READ on SocketChannel A");
-//        socketChannel.register(mSelector, SelectionKey.OP_READ);
-
         Log.i(TAG, "HTSP Connected");
         setState(State.CONNECTED);
     }
@@ -329,7 +326,8 @@ public class HtspConnection implements Runnable {
     }
 
     public void setWritePending() {
-        Log.d(TAG, "Notified of available data to write");
+        if (HtspConstants.DEBUG)
+            Log.d(TAG, "Notified of available data to write");
 
         mLock.lock();
         try {
@@ -340,7 +338,8 @@ public class HtspConnection implements Runnable {
 
             if (mSocketChannel != null && mSocketChannel.isConnected() && !mSocketChannel.isConnectionPending()) {
                 try {
-                    Log.d(TAG, "Registering OP_READ | OP_WRITE on SocketChannel");
+                    if (HtspConstants.DEBUG)
+                        Log.d(TAG, "Registering OP_READ | OP_WRITE on SocketChannel");
                     mSocketChannel.register(mSelector, SelectionKey.OP_WRITE);
                     mSelector.wakeup();
                 } catch (ClosedChannelException e) {
@@ -426,7 +425,8 @@ public class HtspConnection implements Runnable {
         }
 
         try {
-            Log.d(TAG, "Registering OP_CONNECT | OP_READ on SocketChannel");
+            if (HtspConstants.DEBUG)
+                Log.d(TAG, "Registering OP_CONNECT | OP_READ on SocketChannel");
             int operations = SelectionKey.OP_CONNECT | SelectionKey.OP_READ;
             mSocketChannel.register(mSelector, operations);
         } catch (ClosedChannelException e) {
@@ -457,7 +457,8 @@ public class HtspConnection implements Runnable {
 
             if (mSocketChannel != null) {
                 try {
-                    Log.i(TAG, "Calling SocketChannel close");
+                    if (HtspConstants.DEBUG)
+                        Log.d(TAG, "Calling SocketChannel close");
                     mSocketChannel.socket().close();
                     mSocketChannel.close();
                 } catch (IOException e) {
@@ -469,7 +470,8 @@ public class HtspConnection implements Runnable {
 
             if (mSelector != null) {
                 try {
-                    Log.w(TAG, "Calling Selector close");
+                    if (HtspConstants.DEBUG)
+                        Log.d(TAG, "Calling Selector close");
                     mSelector.close();
                 } catch (IOException e) {
                     Log.w(TAG, "Failed to close socket channel: " + e.getLocalizedMessage());

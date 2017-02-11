@@ -37,6 +37,11 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
 
     @Override
     public HtspMessage read(@NonNull ByteBuffer buffer) {
+        if (buffer.limit() < 4) {
+            Log.w(TAG, "Buffer does not have enough data to read a message length");
+            return null;
+        }
+
         byte[] lenBytes = new byte[4];
 
         lenBytes[0] = buffer.get(0);
@@ -57,7 +62,7 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
         // Keep reading until we have the entire message
         if (buffer.limit() < fullLength) {
             if (HtspConstants.DEBUG)
-                Log.v(TAG, "Reading more, don't have enough data yet. Need: " + fullLength + " bytes / Have: " + buffer.position() + " bytes");
+                Log.d(TAG, "Waiting for more data, don't have enough yet. Need: " + fullLength + " bytes / Have: " + buffer.limit() + " bytes");
             return null;
         }
 
