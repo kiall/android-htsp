@@ -69,8 +69,6 @@ public class HtspDataHandler implements HtspConnection.Reader, HtspConnection.Wr
      */
     @Override
     public boolean read(@NonNull SocketChannel socketChannel) {
-        Log.v(TAG, "processReadableSelectionKey()");
-
         int bufferStartPosition = mReadBuffer.position();
         int bytesRead;
 
@@ -84,7 +82,7 @@ public class HtspDataHandler implements HtspConnection.Reader, HtspConnection.Wr
         }
 
         if (bytesRead == -1) {
-            Log.e(TAG, "Failed to process readable selection key, read -1 bytes");
+            Log.e(TAG, "Failed to read from SocketChannel, read -1 bytes");
             return false;
         } else if (bytesRead == 0) {
             // No data read, continue
