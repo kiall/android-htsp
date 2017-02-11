@@ -28,7 +28,7 @@ allprojects {
         releaseRepoName = 'htsp'
         releaseUserOrg = 'kiall'
         releaseGroupId = 'ie.macinnes.htsp'
-        releaseVersion = '0.0.0a5'
+        releaseVersion = gitVersionName
         releaseWebsite = 'https://github.com/kiall/android-htsp'
     }
 }
