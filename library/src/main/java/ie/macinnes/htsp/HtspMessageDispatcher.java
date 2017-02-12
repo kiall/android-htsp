@@ -68,7 +68,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     }
 
     @Override
-    public void sendMessage(@NonNull HtspMessage message) {
+    public long sendMessage(@NonNull HtspMessage message) {
         Log.v(TAG, "Queueing message for sending");
 
         // If necessary, inject a sequence number
@@ -86,6 +86,8 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
         if (mConnection != null) {
             mConnection.setWritePending();
         }
+
+        return message.getLong("seq");
     }
 
     @Override

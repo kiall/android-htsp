@@ -98,8 +98,8 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     }
 
     @Override
-    public void sendMessage(@NonNull HtspMessage message) {
-        mMessageDispatcher.sendMessage(message);
+    public long sendMessage(@NonNull HtspMessage message) {
+        return mMessageDispatcher.sendMessage(message);
     }
 
     @Override

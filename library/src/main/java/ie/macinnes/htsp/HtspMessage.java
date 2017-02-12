@@ -88,8 +88,9 @@ public class HtspMessage extends HashMap<String, Object> {
          * Queues a message for sending
          *
          * @param message The message to send
+         * @return The messages sequence number
          */
-        void sendMessage(@NonNull HtspMessage message);
+        long sendMessage(@NonNull HtspMessage message);
 
     }
 
