@@ -18,6 +18,7 @@ package ie.macinnes.htsp.tasks;
 
 import android.os.Handler;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -30,7 +31,7 @@ import ie.macinnes.htsp.HtspMessage;
 /**
  * Handles a Subscription on a HTSP Connection
  */
-public class Subscriber implements HtspMessage.Listener {
+public class Subscriber implements HtspMessage.Listener, Authenticator.Listener {
     private static final String TAG = Subscriber.class.getSimpleName();
 
     private static final Set<String> HANDLED_METHODS = new HashSet<>(Arrays.asList(new String[]{
@@ -57,6 +58,9 @@ public class Subscriber implements HtspMessage.Listener {
     private final int mSubscriptionId;
     private final Listener mListener;
 
+    private long mChannelId;
+    private boolean mIsSubscribed = false;
+
     public Subscriber(@NonNull HtspMessage.Dispatcher dispatcher, @NonNull Listener listener) {
         mDispatcher = dispatcher;
         mListener = listener;
@@ -65,7 +69,9 @@ public class Subscriber implements HtspMessage.Listener {
     }
 
     public void subscribe(long channelId) {
-        mDispatcher.addMessageListener(this);
+        if (!mIsSubscribed) {
+            mDispatcher.addMessageListener(this);
+        }
 
         HtspMessage subscribeRequest = new HtspMessage();
 
@@ -74,9 +80,14 @@ public class Subscriber implements HtspMessage.Listener {
         subscribeRequest.put("channelId", channelId);
 
         mDispatcher.sendMessage(subscribeRequest);
+
+        mChannelId = channelId;
+        mIsSubscribed = true;
     }
 
     public void unsubscribe() {
+        mIsSubscribed = false;
+
         mDispatcher.removeMessageListener(this);
 
         HtspMessage unsubscribeRequest = new HtspMessage();
@@ -87,12 +98,12 @@ public class Subscriber implements HtspMessage.Listener {
         mDispatcher.sendMessage(unsubscribeRequest);
     }
 
-    // HtspMessage.Listener Methods
     @Override
     public Handler getHandler() {
         return null;
     }
 
+    // HtspMessage.Listener Methods
     @Override
     public void onMessage(@NonNull HtspMessage message) {
         final String method = message.getString("method");
@@ -107,6 +118,15 @@ public class Subscriber implements HtspMessage.Listener {
             } else if (method.equals("muxpkt")) {
                 mListener.onMuxpkt(message);
             }
+        }
+    }
+
+    // Authenticator.Listener Methods
+    @Override
+    public void onAuthenticationStateChange(@NonNull Authenticator.State state) {
+        if (mIsSubscribed && state == Authenticator.State.AUTHENTICATED) {
+            Log.w(TAG, "Resubscribing to channel " + mChannelId);
+            subscribe(mChannelId);
         }
     }
 }
