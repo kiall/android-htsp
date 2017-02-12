@@ -10,7 +10,7 @@ android {
         targetSdkVersion project.ext.targetSdkVersion
 
         versionCode System.getenv("APP_VERSION_CODE") as Integer ?: 0
-        versionName gitVersionName
+        versionName project.ext.gitVersionName
 
 //        setProperty("archivesBaseName", "ie.macinnes.htsp")
     }
