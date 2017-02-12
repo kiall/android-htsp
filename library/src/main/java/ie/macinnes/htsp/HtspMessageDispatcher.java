@@ -45,6 +45,9 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
 
     private HtspConnection mConnection;
 
+    private final LongSparseArray<Object> mSequenceLocks = new LongSparseArray<>();
+    private final LongSparseArray<HtspMessage> mSequenceResponses = new LongSparseArray<>();
+
     public HtspMessageDispatcher() {
     }
 
@@ -91,6 +94,41 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     }
 
     @Override
+    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) {
+        Log.v(TAG, "Queueing synchronous message for sending");
+        long seq;
+
+        // If necessary, inject a sequence number
+        if (!message.containsKey("seq")) {
+            seq = (long) sSequence.getAndIncrement();
+            message.put("seq", seq);
+        } else {
+            seq = message.getLong("seq");
+        }
+
+        Object lock = new Object();
+        try {
+            Log.v(TAG, "Putting " + seq + " into mSequenceLocks");
+            mSequenceLocks.put(seq, lock);
+
+            sendMessage(message);
+
+            synchronized (lock) {
+                try {
+                    lock.wait(timeout);
+                } catch (InterruptedException e) {
+                    return null;
+                }
+            }
+
+            return mSequenceResponses.get(seq);
+        } finally {
+            mSequenceLocks.remove(seq);
+            mSequenceResponses.remove(seq);
+        }
+    }
+
+    @Override
     public void onMessage(@NonNull final HtspMessage message) {
         if (message.containsKey("seq")) {
             long seq = message.getLong("seq");
@@ -105,6 +143,20 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
 
                 // Clear the sequence from our lookup table, it's no longer needed.
                 sMessageResposeMethodsBySequence.remove(seq);
+            }
+
+            // If we have a SequenceLock for this seq, the message is part of a blocking request/
+            // reply, so stash it in place of lock, notify the lock and don't pass the message onto
+            // the other listeners.
+            if (mSequenceLocks.indexOfKey(seq) >= 0) {
+                Log.v(TAG, "Found " + seq + " in mSequenceLocks, synchronous response");
+                Object lock = mSequenceLocks.get(seq);
+                mSequenceResponses.put(seq, message);
+                synchronized (lock) {
+                    lock.notify();
+                }
+                mSequenceLocks.remove(seq);
+                return;
             }
         }
 

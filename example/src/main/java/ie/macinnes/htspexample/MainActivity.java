@@ -5,28 +5,23 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import ie.macinnes.htsp.HtspConnection;
-import ie.macinnes.htsp.HtspDataHandler;
-import ie.macinnes.htsp.HtspMessageDispatcher;
-import ie.macinnes.htsp.HtspMessageSerializer;
 import ie.macinnes.htsp.SimpleHtspConnection;
 import ie.macinnes.htsp.tasks.Authenticator;
+import ie.macinnes.htsp.HtspFileInputStream;
 
 public class MainActivity extends AppCompatActivity {
     private static final String NEWLINE = System.getProperty("line.separator");
 
-    private HtspMessageSerializer mHtspMessageSerializer;
-    private HtspMessageDispatcher mHtspMessageDispatcher;
-    private HtspDataHandler mHtspDataHandler;
     private HtspConnection.ConnectionDetails mConnectionDetails;
-    private Authenticator mAuthenticator;
-
-    private HtspConnection mHtspConnection;
-    private Thread mHtspConnectionThread;
 
     private Handler mMainHandler = new Handler(Looper.getMainLooper());
 
@@ -101,5 +96,27 @@ public class MainActivity extends AppCompatActivity {
 
     public void disconnect(View view) {
         mSimpleHtspConnection.closeConnection();
+    }
+
+    public void fetchFile(View view) {
+        TextView v = (TextView) findViewById(R.id.debugOutput);
+        v.append("Opening a file" + NEWLINE);
+
+        Log.d("FooBar", "XXX Opening a file");
+
+        InputStream foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/294");
+
+        try {
+            while (foo.read() != -1) {
+                v.append("Read a byte" + NEWLINE);
+
+                ScrollView sv = (ScrollView) findViewById(R.id.scrollView);
+                sv.scrollTo(0, sv.getBottom());
+                sv.fullScroll(View.FOCUS_DOWN);
+            }
+            v.append("Read done" + NEWLINE);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

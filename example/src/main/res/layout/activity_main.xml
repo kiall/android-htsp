@@ -47,6 +47,12 @@
                 android:text="Disconnect"
                 android:onClick="disconnect"/>
 
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Fetch File"
+                android:onClick="fetchFile"/>
+
         </LinearLayout>
 
 

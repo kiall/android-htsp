@@ -92,6 +92,13 @@ public class HtspMessage extends HashMap<String, Object> {
          */
         long sendMessage(@NonNull HtspMessage message);
 
+        /**
+         * Queues a message for sending, blocks for the response
+         *
+         * @param message The message to send
+         * @return The response message
+         */
+        HtspMessage sendMessage(@NonNull HtspMessage message, int timeout);
     }
 
     public interface DispatcherInternal extends Dispatcher {

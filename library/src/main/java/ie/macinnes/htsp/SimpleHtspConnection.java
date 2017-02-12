@@ -103,6 +103,11 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     }
 
     @Override
+    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) {
+        return mMessageDispatcher.sendMessage(message, timeout);
+    }
+
+    @Override
     public Handler getHandler() {
         return null;
     }
