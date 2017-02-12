@@ -15,11 +15,13 @@
  */
 package ie.macinnes.htsp;
 
+import android.os.Handler;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import ie.macinnes.htsp.tasks.Authenticator;
 
-public class SimpleHtspConnection implements HtspMessage.Dispatcher {
+public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnection.Listener {
     private static final String TAG = SimpleHtspConnection.class.getSimpleName();
 
     private final HtspMessageSerializer mMessageSerializer;
@@ -45,6 +47,7 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher {
 
         mConnection = new HtspConnection(
                 mConnectionDetails, mDataHandler, mDataHandler);
+        mConnection.addConnectionListener(this);
         mConnection.addConnectionListener(mMessageDispatcher);
         mConnection.addConnectionListener(mDataHandler);
         mConnection.addConnectionListener(mAuthenticator);
@@ -97,5 +100,23 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher {
     @Override
     public void sendMessage(@NonNull HtspMessage message) {
         mMessageDispatcher.sendMessage(message);
+    }
+
+    @Override
+    public Handler getHandler() {
+        return null;
+    }
+
+    @Override
+    public void setConnection(@NonNull HtspConnection connection) {}
+
+    @Override
+    public void onConnectionStateChange(@NonNull HtspConnection.State state) {
+        // Simple HTSP Connections will take care of reconnecting upon failure for you..
+        if (state == HtspConnection.State.FAILED) {
+            // TODO: Implement a retry backoff
+            Log.w(TAG, "HTSP Connection failed, reconnecting");
+            start();
+        }
     }
 }
