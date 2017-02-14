@@ -105,7 +105,13 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(TAG, "Opening a file");
 
-        InputStream foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/294");
+        InputStream foo = null;
+        try {
+            foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/294");
+        } catch (IOException e) {
+            v.append("Failed to open file" + NEWLINE);
+            return;
+        }
 
         try {
             while (foo.read() != -1) {

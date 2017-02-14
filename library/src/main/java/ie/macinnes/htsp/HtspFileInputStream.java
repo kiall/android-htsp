@@ -20,6 +20,7 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.LongSparseArray;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -36,18 +37,17 @@ public class HtspFileInputStream extends InputStream {
     private final String mFileName;
 
     private ByteBuffer mBuffer;
+
     private int mFileId = -1;
     private long mFileSize = -1;
-    private long mFileOffset = 0;
+    private long mFilePosition = 0;
 
-    private final ArrayList<Long> mSequences = new ArrayList<>();
-    private final LongSparseArray<Object> mSequenceLocks = new LongSparseArray<>();
-
-    public HtspFileInputStream(@NonNull HtspMessage.Dispatcher dispatcher, String fileName) {
+    public HtspFileInputStream(@NonNull HtspMessage.Dispatcher dispatcher, String fileName) throws IOException {
         mDispatcher = dispatcher;
         mFileName = fileName;
 
         sendFileOpen();
+        sendFileRead(1024000, 0);
     }
 
     // InputStream Methods
@@ -67,11 +67,105 @@ public class HtspFileInputStream extends InputStream {
      */
     @Override
     public int read() throws IOException {
-        if (mBuffer == null || !mBuffer.hasRemaining()) {
-            sendFileRead(1024);
+        // If we've reached the end of the file, we're done :)
+        if (mFileSize == mFilePosition && !mBuffer.hasRemaining()) {
+            return -1;
         }
 
-        return mBuffer.get();
+        sendFileRead(1024000, mFilePosition);
+
+        if (!mBuffer.hasRemaining() && mFileSize == -1) {
+            // If we still don't have any data, and we don't have a known size, then we're done.
+            return -1;
+
+        } else if (!mBuffer.hasRemaining()) {
+            // If we don't have data here, something went wrong
+            throw new IOException("Failed to read data for " + mFileName);
+        }
+
+        return mBuffer.get() & 0xff;
+    }
+
+    /**
+     * Reads up to <code>len</code> bytes of data from the input stream into
+     * an array of bytes.  An attempt is made to read as many as
+     * <code>len</code> bytes, but a smaller number may be read.
+     * The number of bytes actually read is returned as an integer.
+     * <p>
+     * <p> This method blocks until input data is available, end of file is
+     * detected, or an exception is thrown.
+     * <p>
+     * <p> If <code>len</code> is zero, then no bytes are read and
+     * <code>0</code> is returned; otherwise, there is an attempt to read at
+     * least one byte. If no byte is available because the stream is at end of
+     * file, the value <code>-1</code> is returned; otherwise, at least one
+     * byte is read and stored into <code>b</code>.
+     * <p>
+     * <p> The first byte read is stored into element <code>b[off]</code>, the
+     * next one into <code>b[off+1]</code>, and so on. The number of bytes read
+     * is, at most, equal to <code>len</code>. Let <i>k</i> be the number of
+     * bytes actually read; these bytes will be stored in elements
+     * <code>b[off]</code> through <code>b[off+</code><i>k</i><code>-1]</code>,
+     * leaving elements <code>b[off+</code><i>k</i><code>]</code> through
+     * <code>b[off+len-1]</code> unaffected.
+     * <p>
+     * <p> In every case, elements <code>b[0]</code> through
+     * <code>b[off]</code> and elements <code>b[off+len]</code> through
+     * <code>b[b.length-1]</code> are unaffected.
+     * <p>
+     * <p> The <code>read(b,</code> <code>off,</code> <code>len)</code> method
+     * for class <code>InputStream</code> simply calls the method
+     * <code>read()</code> repeatedly. If the first such call results in an
+     * <code>IOException</code>, that exception is returned from the call to
+     * the <code>read(b,</code> <code>off,</code> <code>len)</code> method.  If
+     * any subsequent call to <code>read()</code> results in a
+     * <code>IOException</code>, the exception is caught and treated as if it
+     * were end of file; the bytes read up to that point are stored into
+     * <code>b</code> and the number of bytes read before the exception
+     * occurred is returned. The default implementation of this method blocks
+     * until the requested amount of input data <code>len</code> has been read,
+     * end of file is detected, or an exception is thrown. Subclasses are encouraged
+     * to provide a more efficient implementation of this method.
+     *
+     * @param b   the buffer into which the data is read.
+     * @param off the start offset in array <code>b</code>
+     *            at which the data is written.
+     * @param len the maximum number of bytes to read.
+     * @return the total number of bytes read into the buffer, or
+     * <code>-1</code> if there is no more data because the end of
+     * the stream has been reached.
+     * @throws IOException               If the first byte cannot be read for any reason
+     *                                   other than end of file, or if the input stream has been closed, or if
+     *                                   some other I/O error occurs.
+     * @throws NullPointerException      If <code>b</code> is <code>null</code>.
+     * @throws IndexOutOfBoundsException If <code>off</code> is negative,
+     *                                   <code>len</code> is negative, or <code>len</code> is greater than
+     *                                   <code>b.length - off</code>
+     * @see InputStream#read()
+     */
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        // If we've reached the end of the file, we're done :)
+        if (mFileSize == mFilePosition && !mBuffer.hasRemaining()) {
+            return -1;
+        }
+
+        sendFileRead(1024000, mFilePosition);
+
+        if (!mBuffer.hasRemaining() && mFileSize == -1) {
+            // If we still don't have any data, and we don't have a known size, then we're done.
+            return -1;
+
+        } else if (!mBuffer.hasRemaining()) {
+            // If we don't have data here, something went wrong
+            throw new IOException("Failed to read data for " + mFileName);
+        }
+
+        int startPos = mBuffer.position();
+
+        mBuffer.get(b, off, Math.min(len, mBuffer.remaining()));
+
+        return mBuffer.position() - startPos;
     }
 
     /**
@@ -87,7 +181,7 @@ public class HtspFileInputStream extends InputStream {
     }
 
     // Internal Methods
-    private void sendFileOpen() {
+    private void sendFileOpen() throws IOException {
         HtspMessage fileOpenRequest = new HtspMessage();
 
         fileOpenRequest.put("method", "fileOpen");
@@ -96,8 +190,11 @@ public class HtspFileInputStream extends InputStream {
         HtspMessage fileOpenResponse = mDispatcher.sendMessage(fileOpenRequest, 5000);
 
         if (fileOpenResponse == null) {
-            Log.e(TAG, "Failed to receive response to fileOpen request");
-            return;
+            throw new IOException("Failed to receive response to fileOpen request");
+        } else if (fileOpenResponse.containsKey("error")) {
+            String error = fileOpenResponse.getString("error");
+            Log.e(TAG, "Received error when opening file: " + error);
+            throw new FileNotFoundException(error);
         }
 
         mFileId = fileOpenResponse.getInteger("id");
@@ -105,57 +202,56 @@ public class HtspFileInputStream extends InputStream {
         if (fileOpenResponse.containsKey("size")) {
             // Size is optional
             mFileSize = fileOpenResponse.getLong("size");
+            Log.v(TAG, "Opened file " + mFileName + " of size " + mFileSize + " successfully");
+        } else {
+            Log.v(TAG, "Opened file " + mFileName + " successfully");
         }
     }
 
-    private void sendFileRead(long size) {
-        sendFileRead(size, -1);
-    }
-
-    private void sendFileRead(long size, long offset) {
-         long readSize;
+    private void sendFileRead(long size, long offset) throws IOException {
+        if (mBuffer != null && mBuffer.hasRemaining()) {
+            return;
+        }
 
         if (mFileSize != -1) {
             // Make sure we don't overrun the file
-            if (offset == -1) {
-                readSize = Math.min(mFileOffset + size, mFileSize);
-                readSize = readSize - mFileOffset;
-
-                // Store the new offset
-                mFileOffset = mFileOffset + readSize;
-            } else {
-                readSize = Math.min(offset + size, mFileSize);
-                readSize = readSize - offset;
-
-                // Store the new offset
-                mFileOffset = offset + readSize;
+            if (offset + size > mFileSize) {
+                size = mFileSize - offset;
             }
-        } else {
-            // Since we don't know the size, we can't prevent requesting more data than exists
-            readSize = size;
         }
 
         HtspMessage fileReadRequest = new HtspMessage();
 
         fileReadRequest.put("method", "fileRead");
         fileReadRequest.put("id", mFileId);
-        fileReadRequest.put("size", readSize);
+        fileReadRequest.put("size", size);
+        fileReadRequest.put("offset", offset);
 
-        if (offset != -1) {
-            fileReadRequest.put("offset", offset);
-        }
+        if (HtspConstants.DEBUG)
+            Log.v(TAG, "Fetching " + size + " bytes of file at offset " + offset);
 
         HtspMessage fileReadResponse = mDispatcher.sendMessage(fileReadRequest, 5000);
 
         if (fileReadResponse == null) {
-            Log.e(TAG, "Failed to receive response to fileRead request");
-            return;
+            throw new IOException("Failed to receive response to fileRead request");
+        } else if (fileReadResponse.containsKey("error")) {
+            String error = fileReadResponse.getString("error");
+            Log.e(TAG, "Received error when reading file: " + error);
+            throw new IOException(error);
         }
 
-        mBuffer = ByteBuffer.wrap(fileReadResponse.getByteArray("data"));
+        final byte[] data = fileReadResponse.getByteArray("data");
+
+        if (HtspConstants.DEBUG)
+            Log.v(TAG, "Fetched " + data.length + " bytes of file at offset " + offset);
+
+        mFilePosition += data.length;
+        mBuffer = ByteBuffer.wrap(data);
     }
 
     private void sendFileClose() {
+        Log.v(TAG, "Closing file " + mFileName);
+
         HtspMessage fileCloseRequest = new HtspMessage();
 
         fileCloseRequest.put("method", "fileClose");
