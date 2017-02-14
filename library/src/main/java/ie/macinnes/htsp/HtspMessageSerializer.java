@@ -143,18 +143,12 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
             } else if (fieldType == FIELD_MAP) {
                 if (HtspConstants.DEBUG)
                     Log.v(TAG, "Deserializaing a MAP with key " + key);
-                ByteBuffer b = ByteBuffer.allocate(valueBytes.length);
-                b.put(valueBytes);
-                b.flip();
-                value = deserialize(b);
+                value = deserialize(ByteBuffer.wrap(valueBytes));
 
             } else if (fieldType == FIELD_LIST) {
                 if (HtspConstants.DEBUG)
                     Log.v(TAG, "Deserializaing a LIST with key " + key);
-                ByteBuffer b = ByteBuffer.allocate(valueBytes.length);
-                b.put(valueBytes);
-                b.flip();
-                value = new ArrayList<>(deserialize(b).values());
+                value = new ArrayList<>(deserialize(ByteBuffer.wrap(valueBytes)).values());
 
             } else if (fieldType == FIELD_BIN) {
                 if (HtspConstants.DEBUG)

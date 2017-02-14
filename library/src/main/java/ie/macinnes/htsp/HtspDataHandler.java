@@ -32,8 +32,8 @@ public class HtspDataHandler implements HtspConnection.Reader, HtspConnection.Wr
     private final HtspMessageSerializer mMessageSerializer;
     private final HtspMessage.DispatcherInternal mMessageDispatcher;
 
-    private final ByteBuffer mReadBuffer = ByteBuffer.allocate(5242880); // 5MB
-    private final ByteBuffer mWriteBuffer = ByteBuffer.allocate(1024 * 1024); // 1024 * 1024 = Max TVH will accept
+    private final ByteBuffer mReadBuffer = ByteBuffer.allocateDirect(5242880); // 5MB
+    private final ByteBuffer mWriteBuffer = ByteBuffer.allocateDirect(1024 * 1024); // 1024 * 1024 = Max TVH will accept
 
     public HtspDataHandler(HtspMessageSerializer messageSerializer, HtspMessage.DispatcherInternal messageDispatcher) {
         mMessageSerializer = messageSerializer;

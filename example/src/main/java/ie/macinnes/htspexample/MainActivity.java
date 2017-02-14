@@ -19,6 +19,7 @@ import ie.macinnes.htsp.tasks.Authenticator;
 import ie.macinnes.htsp.HtspFileInputStream;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = MainActivity.class.getSimpleName();
     private static final String NEWLINE = System.getProperty("line.separator");
 
     private HtspConnection.ConnectionDetails mConnectionDetails;
@@ -102,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
         TextView v = (TextView) findViewById(R.id.debugOutput);
         v.append("Opening a file" + NEWLINE);
 
-        Log.d("FooBar", "XXX Opening a file");
+        Log.d(TAG, "Opening a file");
 
         InputStream foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/294");
 
