@@ -54,20 +54,24 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     // HtspMessage.DispatcherInternal Methods
     @Override
     public void addMessageListener(HtspMessage.Listener listener) {
-        if (mListeners.contains(listener)) {
-            Log.w(TAG, "Attempted to add duplicate message listener");
-            return;
+        synchronized (mListeners) {
+            if (mListeners.contains(listener)) {
+                Log.w(TAG, "Attempted to add duplicate message listener");
+                return;
+            }
+            mListeners.add(listener);
         }
-        mListeners.add(listener);
     }
 
     @Override
     public void removeMessageListener(HtspMessage.Listener listener) {
-        if (!mListeners.contains(listener)) {
-            Log.w(TAG, "Attempted to remove non existing message listener");
-            return;
+        synchronized (mListeners) {
+            if (!mListeners.contains(listener)) {
+                Log.w(TAG, "Attempted to remove non existing message listener");
+                return;
+            }
+            mListeners.remove(listener);
         }
-        mListeners.remove(listener);
     }
 
     @Override
@@ -160,18 +164,20 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
             }
         }
 
-        for (final HtspMessage.Listener listener : mListeners) {
-            Handler handler = listener.getHandler();
+        synchronized (mListeners) {
+            for (final HtspMessage.Listener listener : mListeners) {
+                Handler handler = listener.getHandler();
 
-            if (handler == null) {
-                listener.onMessage(message);
-            } else {
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        listener.onMessage(message);
-                    }
-                });
+                if (handler == null) {
+                    listener.onMessage(message);
+                } else {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            listener.onMessage(message);
+                        }
+                    });
+                }
             }
         }
     }
