@@ -31,7 +31,7 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     private final Authenticator mAuthenticator;
 
     private final HtspConnection mConnection;
-    private final Thread mConnectionThread;
+    private Thread mConnectionThread;
 
     public SimpleHtspConnection(HtspConnection.ConnectionDetails connectionDetails) {
         mConnectionDetails = connectionDetails;
@@ -51,11 +51,24 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
         mConnection.addConnectionListener(mMessageDispatcher);
         mConnection.addConnectionListener(mDataHandler);
         mConnection.addConnectionListener(mAuthenticator);
-
-        mConnectionThread = new Thread(mConnection);
     }
 
     public void start() {
+        if (mConnectionThread != null) {
+            Log.w(TAG, "SimpleHtspConnection already started");
+            return;
+        }
+
+        restart();
+    }
+
+    private void restart() {
+        // TODO: Ensure we don't have 2 connections at once?
+        if (mConnectionThread != null) {
+            mConnectionThread.interrupt();
+        }
+
+        mConnectionThread = new Thread(mConnection);
         mConnectionThread.start();
     }
 
@@ -121,7 +134,7 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
         if (state == HtspConnection.State.FAILED) {
             // TODO: Implement a retry backoff
             Log.w(TAG, "HTSP Connection failed, reconnecting");
-            start();
+            restart();
         }
     }
 }
