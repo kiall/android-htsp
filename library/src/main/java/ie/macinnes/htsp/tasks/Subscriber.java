@@ -55,10 +55,12 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     private final HtspMessage.Dispatcher mDispatcher;
-    private final int mSubscriptionId;
     private final Listener mListener;
+    private final int mSubscriptionId;
 
     private long mChannelId;
+    private String mProfile;
+
     private boolean mIsSubscribed = false;
 
     public Subscriber(@NonNull HtspMessage.Dispatcher dispatcher, @NonNull Listener listener) {
@@ -69,6 +71,10 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     public void subscribe(long channelId) {
+        subscribe(channelId, null);
+    }
+
+    public void subscribe(long channelId, String profile) {
         if (!mIsSubscribed) {
             mDispatcher.addMessageListener(this);
         }
@@ -79,9 +85,15 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         subscribeRequest.put("subscriptionId", mSubscriptionId);
         subscribeRequest.put("channelId", channelId);
 
+        if (mProfile != null) {
+            subscribeRequest.put("profile", mProfile);
+        }
+
         mDispatcher.sendMessage(subscribeRequest);
 
         mChannelId = channelId;
+        mProfile = profile;
+
         mIsSubscribed = true;
     }
 
@@ -126,7 +138,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     public void onAuthenticationStateChange(@NonNull Authenticator.State state) {
         if (mIsSubscribed && state == Authenticator.State.AUTHENTICATED) {
             Log.w(TAG, "Resubscribing to channel " + mChannelId);
-            subscribe(mChannelId);
+            subscribe(mChannelId, mProfile);
         }
     }
 }
