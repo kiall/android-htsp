@@ -187,7 +187,7 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
 
     private void handleHelloResponse(HtspMessage responseMessage) {
         Log.i(TAG, "Got hello response");
-
+        Log.i(TAG, "Sending authenticate request");
         HtspMessage message = new HtspMessage();
 
         message.put("method", "authenticate");

@@ -82,21 +82,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void connect(View view) {
-        if (mSimpleHtspConnection != null && !mSimpleHtspConnection.isClosed()) {
-            // We're not disconnected, running the code below will dupe the thread and leave multiple
-            // connections open.
-            return;
-        }
-
         mSimpleHtspConnection.start();
     }
 
-    public void authenticate(View view) {
-        // mSimpleHtspConnection.startAuthentication();
-    }
-
     public void disconnect(View view) {
-        mSimpleHtspConnection.closeConnection();
+        mSimpleHtspConnection.stop();
     }
 
     public void fetchFile(View view) {
@@ -107,21 +97,22 @@ public class MainActivity extends AppCompatActivity {
 
         InputStream foo = null;
         try {
-            foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/294");
+            foo = new HtspFileInputStream(mSimpleHtspConnection, "imagecache/3909");
         } catch (IOException e) {
             v.append("Failed to open file" + NEWLINE);
             return;
         }
 
         try {
+            int i = 0;
             while (foo.read() != -1) {
-                v.append("Read a byte" + NEWLINE);
-
-                ScrollView sv = (ScrollView) findViewById(R.id.scrollView);
-                sv.scrollTo(0, sv.getBottom());
-                sv.fullScroll(View.FOCUS_DOWN);
+                i += 1;
             }
-            v.append("Read done" + NEWLINE);
+            v.append("Read done, read " + i + " bytes" + NEWLINE);
+
+            ScrollView sv = (ScrollView) findViewById(R.id.scrollView);
+            sv.scrollTo(0, sv.getBottom());
+            sv.fullScroll(View.FOCUS_DOWN);
         } catch (IOException e) {
             e.printStackTrace();
         }

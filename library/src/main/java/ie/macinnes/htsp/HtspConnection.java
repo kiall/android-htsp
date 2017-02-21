@@ -20,7 +20,9 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -177,17 +179,20 @@ public class HtspConnection implements Runnable {
     public void run() {
         // Do the initial connection
         try {
-            openConnection();
-            mRunning = true;
+            mRunning = openConnection();
         } catch (Exception e) {
-            Log.e(TAG, "Unhandled exception in HTSP Connection Thread, Shutting down", e);
-            if (!isClosed()) {
+            Log.e(TAG, "Unhandled exception while opening HTSP connection, shutting down", e);
+            if (!isClosedOrClosingOrFailed()) {
                 closeConnection(State.FAILED);
             }
         }
 
         // Main Loop
         while (mRunning) {
+            if (mSelector == null) {
+                break;
+            }
+
             try {
                 mSelector.select();
             } catch (IOException e) {
@@ -224,18 +229,18 @@ public class HtspConnection implements Runnable {
                         processWritableSelectionKey(selectionKey);
                     }
 
-                    if (isClosed()) {
+                    if (isClosedOrClosingOrFailed()) {
                         break;
                     }
                 }
 
-                if (isClosed()) {
+                if (isClosedOrClosingOrFailed()) {
                     break;
                 }
 
-                if (mSocketChannel.isConnected() && mWriter.hasPendingData()) {
+                if (mSocketChannel != null && mSocketChannel.isConnected() && mWriter.hasPendingData()) {
                     mSocketChannel.register(mSelector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                } else if (mSocketChannel.isConnected()) {
+                } else if (mSocketChannel != null && mSocketChannel.isConnected()) {
                     mSocketChannel.register(mSelector, SelectionKey.OP_READ);
                 }
             } catch (Exception e) {
@@ -247,7 +252,7 @@ public class HtspConnection implements Runnable {
 
         mLock.lock();
         try {
-            if (!isClosed()) {
+            if (!isClosedOrClosingOrFailed()) {
                 Log.e(TAG, "HTSP Connection thread wrapping up without already being closed");
                 closeConnection(State.FAILED);
                 return;
@@ -274,7 +279,14 @@ public class HtspConnection implements Runnable {
 
         if (HtspConstants.DEBUG)
             Log.v(TAG, "Finishing SocketChannel Connection");
-        socketChannel.finishConnect();
+
+        try {
+            socketChannel.finishConnect();
+        } catch (ConnectException e) {
+            Log.e(TAG, "Failed to connect to HTSP server address:", e);
+            closeConnection(State.FAILED);
+            return;
+        }
 
         Log.i(TAG, "HTSP Connected");
         setState(State.CONNECTED);
@@ -331,8 +343,8 @@ public class HtspConnection implements Runnable {
 
         mLock.lock();
         try {
-            if (isClosedOrClosing()) {
-                Log.w(TAG, "Attempting to write while closed or closing - discarding");
+            if (isClosedOrClosingOrFailed()) {
+                Log.w(TAG, "Attempting to write while closed, closing or failed - discarding");
                 return;
             }
 
@@ -358,11 +370,27 @@ public class HtspConnection implements Runnable {
     }
 
     public boolean isClosed() {
-        return getState() == State.CLOSED || getState() == State.FAILED;
+        return getState() == State.CLOSED;
+    }
+
+    public boolean isClosing() {
+        return getState() == State.CLOSING;
+    }
+
+    public boolean isFailed() {
+        return getState() == State.FAILED;
+    }
+
+    public boolean isClosedOrFailed() {
+        return isClosed() || isFailed();
     }
 
     public boolean isClosedOrClosing() {
-        return isClosed() || getState() == State.CLOSING;
+        return isClosed() || isClosing();
+    }
+
+    public boolean isClosedOrClosingOrFailed() {
+        return isClosed() || isClosing() || isFailed();
     }
 
     public State getState() {
@@ -392,12 +420,12 @@ public class HtspConnection implements Runnable {
         }
     }
 
-    private void openConnection() throws HtspException {
+    private boolean openConnection() throws HtspException {
         Log.i(TAG, "Opening HTSP Connection");
 
         mLock.lock();
         try {
-            if (!isClosed()) {
+            if (!isClosedOrFailed()) {
                 throw new HtspException("Attempting to connect while already connected");
             }
 
@@ -409,14 +437,18 @@ public class HtspConnection implements Runnable {
                 mSocketChannel.connect(new InetSocketAddress(
                         mConnectionDetails.getHostname(), mConnectionDetails.getPort()));
                 mSelector = Selector.open();
-            } catch (IOException e) {
-                Log.e(TAG, "Caught IOException while opening SocketChannel: " + e.getLocalizedMessage());
+            } catch (ClosedByInterruptException e) {
+                Log.e(TAG, "Failed to open HTSP connection, interrupted");
                 closeConnection(State.FAILED);
-                throw new HtspException(e.getLocalizedMessage(), e);
+                return false;
             } catch (UnresolvedAddressException e) {
-                Log.e(TAG, "Failed to resolve HTSP server address: " + e.getLocalizedMessage());
+                Log.e(TAG, "Failed to resolve HTSP server address:", e);
                 closeConnection(State.FAILED);
-                throw new HtspException(e.getLocalizedMessage(), e);
+                return false;
+            } catch (IOException e) {
+                Log.e(TAG, "Caught IOException while opening SocketChannel:", e);
+                closeConnection(State.FAILED);
+                return false;
             }
         } finally {
             mLock.unlock();
@@ -428,11 +460,12 @@ public class HtspConnection implements Runnable {
             int operations = SelectionKey.OP_CONNECT | SelectionKey.OP_READ;
             mSocketChannel.register(mSelector, operations);
         } catch (ClosedChannelException e) {
-            Log.e(TAG, "Failed to register selector, channel closed: " + e.getLocalizedMessage());
+            Log.e(TAG, "Failed to register selector, channel closed:", e);
             closeConnection(State.FAILED);
-            throw new HtspException(e.getLocalizedMessage(), e);
+            return false;
         }
 
+        return true;
     }
 
     public void closeConnection() {
@@ -440,17 +473,17 @@ public class HtspConnection implements Runnable {
     }
 
     private void closeConnection(State finalState) {
+        if (isClosedOrClosingOrFailed()) {
+            Log.w(TAG, "Attempting to close while already closed, closing or failed");
+            return;
+        }
+
         Log.i(TAG, "Closing HTSP Connection");
 
         mRunning = false;
 
         mLock.lock();
         try {
-            if (isClosedOrClosing()) {
-                Log.e(TAG, "Attempting to close while already closed, or closing");
-                return;
-            }
-
             setState(State.CLOSING);
 
             if (mSocketChannel != null) {
@@ -460,7 +493,7 @@ public class HtspConnection implements Runnable {
                     mSocketChannel.socket().close();
                     mSocketChannel.close();
                 } catch (IOException e) {
-                    Log.w(TAG, "Failed to close socket channel: " + e.getLocalizedMessage());
+                    Log.w(TAG, "Failed to close socket channel:", e);
                 } finally {
                     mSocketChannel = null;
                 }
@@ -472,7 +505,7 @@ public class HtspConnection implements Runnable {
                         Log.d(TAG, "Calling Selector close");
                     mSelector.close();
                 } catch (IOException e) {
-                    Log.w(TAG, "Failed to close socket channel: " + e.getLocalizedMessage());
+                    Log.w(TAG, "Failed to close socket channel:", e);
                 } finally {
                     mSelector = null;
                 }

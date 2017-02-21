@@ -33,6 +33,10 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     private final HtspConnection mConnection;
     private Thread mConnectionThread;
 
+    private boolean mEnableReconnect = false;
+    private int mRetryCount = 0;
+    private int mRetryDelay = 0;
+
     public SimpleHtspConnection(HtspConnection.ConnectionDetails connectionDetails) {
         mConnectionDetails = connectionDetails;
 
@@ -54,26 +58,53 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     }
 
     public void start() {
+        start(true);
+    }
+
+    private void start(boolean allowRestart) {
         if (mConnectionThread != null) {
             Log.w(TAG, "SimpleHtspConnection already started");
             return;
         }
 
-        restart();
-    }
-
-    private void restart() {
-        // TODO: Ensure we don't have 2 connections at once?
-        if (mConnectionThread != null) {
-            mConnectionThread.interrupt();
+        if (allowRestart) {
+            mEnableReconnect = true;
         }
 
         mConnectionThread = new Thread(mConnection);
         mConnectionThread.start();
     }
 
-    public void closeConnection() {
+    private void restart() {
+        if (mConnectionThread != null) {
+            stop(false);
+        }
+
+        start(false);
+    }
+
+    public void stop() {
+        stop(true);
+    }
+
+    private void stop(boolean preventRestart) {
+        if (mConnectionThread == null) {
+            Log.w(TAG, "SimpleHtspConnection not started");
+            return;
+        }
+
+        if (preventRestart) {
+            mEnableReconnect = false;
+        }
+
         mConnection.closeConnection();
+        mConnectionThread.interrupt();
+        try {
+            mConnectionThread.join();
+        } catch (InterruptedException e) {
+            // Ignore.
+        }
+        mConnectionThread = null;
     }
 
     public HtspMessageDispatcher getMessageDispatcher() {
@@ -131,10 +162,23 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     @Override
     public void onConnectionStateChange(@NonNull HtspConnection.State state) {
         // Simple HTSP Connections will take care of reconnecting upon failure for you..
-        if (state == HtspConnection.State.FAILED) {
-            // TODO: Implement a retry backoff
-            Log.w(TAG, "HTSP Connection failed, reconnecting");
+        if (mEnableReconnect && state == HtspConnection.State.FAILED) {
+            Log.w(TAG, "HTSP Connection failed, reconnecting in " + mRetryDelay + " milliseconds");
+
+            try {
+                Thread.sleep(mRetryDelay);
+            } catch (InterruptedException e) {
+                // Ignore
+            }
+
+            mRetryCount += 1;
+            mRetryDelay = Math.min(mRetryCount * 100, 3000);
+
             restart();
+        } else if (state == HtspConnection.State.CONNECTED) {
+            // Reset our retry counter and delay back to zero
+            mRetryCount = 0;
+            mRetryDelay = 0;
         }
     }
 }
