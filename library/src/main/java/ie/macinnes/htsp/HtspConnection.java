@@ -377,19 +377,17 @@ public class HtspConnection implements Runnable {
             mLock.unlock();
         }
 
-        if (mListeners != null) {
-            for (final Listener listener : mListeners) {
-                Handler handler = listener.getHandler();
-                if (handler == null) {
-                    listener.onConnectionStateChange(state);
-                } else {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            listener.onConnectionStateChange(state);
-                        }
-                    });
-                }
+        for (final Listener listener : mListeners) {
+            Handler handler = listener.getHandler();
+            if (handler == null) {
+                listener.onConnectionStateChange(state);
+            } else {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        listener.onConnectionStateChange(state);
+                    }
+                });
             }
         }
     }
