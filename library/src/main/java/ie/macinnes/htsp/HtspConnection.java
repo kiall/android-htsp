@@ -185,6 +185,7 @@ public class HtspConnection implements Runnable {
             if (!isClosedOrClosingOrFailed()) {
                 closeConnection(State.FAILED);
             }
+            return;
         }
 
         // Main Loop
