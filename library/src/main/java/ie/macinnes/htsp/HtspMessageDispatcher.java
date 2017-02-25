@@ -41,7 +41,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     private final List<HtspMessage.Listener> mListeners = new ArrayList<>();
     private final Queue<HtspMessage> mQueue = new ConcurrentLinkedQueue<>();
 
-    private static final LongSparseArray<String> sMessageResposeMethodsBySequence = new LongSparseArray<>();
+    private static final LongSparseArray<String> sMessageResponseMethodsBySequence = new LongSparseArray<>();
 
     private HtspConnection mConnection;
 
@@ -85,7 +85,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
 
         // Record the Sequence Number and Method
         if (message.containsKey("method")) {
-            sMessageResposeMethodsBySequence.append(message.getLong("seq"), message.getString("method"));
+            sMessageResponseMethodsBySequence.append(message.getLong("seq"), message.getString("method"));
         }
 
         mQueue.add(message);
@@ -140,13 +140,13 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
             // Reply messages don't include a method, only the sequence supplied in the request, so
             // if we have this sequence in our lookup table, go ahead and add the method into the
             // message.
-            if (sMessageResposeMethodsBySequence.indexOfKey(seq) >= 0) {
+            if (sMessageResponseMethodsBySequence.indexOfKey(seq) >= 0) {
                 if (!message.containsKey("method")) {
-                    message.put("method", sMessageResposeMethodsBySequence.get(seq));
+                    message.put("method", sMessageResponseMethodsBySequence.get(seq));
                 }
 
                 // Clear the sequence from our lookup table, it's no longer needed.
-                sMessageResposeMethodsBySequence.remove(seq);
+                sMessageResponseMethodsBySequence.remove(seq);
             }
 
             // If we have a SequenceLock for this seq, the message is part of a blocking request/
