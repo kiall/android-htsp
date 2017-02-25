@@ -142,12 +142,12 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
     }
 
     @Override
-    public long sendMessage(@NonNull HtspMessage message) {
+    public long sendMessage(@NonNull HtspMessage message) throws HtspNotConnectedException {
         return mMessageDispatcher.sendMessage(message);
     }
 
     @Override
-    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) {
+    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) throws HtspNotConnectedException {
         return mMessageDispatcher.sendMessage(message, timeout);
     }
 

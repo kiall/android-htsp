@@ -75,7 +75,11 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     }
 
     @Override
-    public long sendMessage(@NonNull HtspMessage message) {
+    public long sendMessage(@NonNull HtspMessage message) throws HtspNotConnectedException {
+        if (!mConnection.isConnected()) {
+            throw new HtspNotConnectedException("Failed to send message, HTSP Connection not connected");
+        }
+
         Log.v(TAG, "Queueing message for sending");
 
         // If necessary, inject a sequence number
@@ -98,7 +102,11 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     }
 
     @Override
-    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) {
+    public HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) throws HtspNotConnectedException {
+        if (!mConnection.isConnected()) {
+            throw new HtspNotConnectedException("Failed to send message, HTSP Connection not connected");
+        }
+
         Log.v(TAG, "Queueing synchronous message for sending");
         long seq;
 

@@ -90,7 +90,7 @@ public class HtspMessage extends HashMap<String, Object> {
          * @param message The message to send
          * @return The messages sequence number
          */
-        long sendMessage(@NonNull HtspMessage message);
+        long sendMessage(@NonNull HtspMessage message) throws HtspNotConnectedException;
 
         /**
          * Queues a message for sending, blocks for the response
@@ -98,7 +98,7 @@ public class HtspMessage extends HashMap<String, Object> {
          * @param message The message to send
          * @return The response message
          */
-        HtspMessage sendMessage(@NonNull HtspMessage message, int timeout);
+        HtspMessage sendMessage(@NonNull HtspMessage message, int timeout) throws HtspNotConnectedException;
     }
 
     public interface DispatcherInternal extends Dispatcher {

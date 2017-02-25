@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ie.macinnes.htsp.HtspMessage;
+import ie.macinnes.htsp.HtspNotConnectedException;
 
 
 /**
@@ -70,11 +71,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         mSubscriptionId = mSubscriptionCount.getAndIncrement();
     }
 
-    public void subscribe(long channelId) {
+    public void subscribe(long channelId) throws HtspNotConnectedException {
         subscribe(channelId, null);
     }
 
-    public void subscribe(long channelId, String profile) {
+    public void subscribe(long channelId, String profile) throws HtspNotConnectedException {
         if (!mIsSubscribed) {
             mDispatcher.addMessageListener(this);
         }
@@ -107,7 +108,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         unsubscribeRequest.put("method", "unsubscribe");
         unsubscribeRequest.put("subscriptionId", mSubscriptionId);
 
-        mDispatcher.sendMessage(unsubscribeRequest);
+        try {
+            mDispatcher.sendMessage(unsubscribeRequest);
+        } catch (HtspNotConnectedException e) {
+            // Ignore: If we're not connected, TVHeadend has already unsubscribed us
+        }
     }
 
     @Override
@@ -138,7 +143,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     public void onAuthenticationStateChange(@NonNull Authenticator.State state) {
         if (mIsSubscribed && state == Authenticator.State.AUTHENTICATED) {
             Log.w(TAG, "Resubscribing to channel " + mChannelId);
-            subscribe(mChannelId, mProfile);
+            try {
+                subscribe(mChannelId, mProfile);
+            } catch (HtspNotConnectedException e) {
+                Log.e(TAG, "Resubscribing to channel failed, not connected");
+            }
         }
     }
 }

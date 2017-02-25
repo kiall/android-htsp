@@ -46,6 +46,8 @@ public class HtspFileInputStream extends InputStream {
         mDispatcher = dispatcher;
         mFileName = fileName;
 
+        Log.i(TAG, "Opening HtspFileInputStream for " + mFileName);
+
         sendFileOpen();
         sendFileRead(1024000, 0);
     }
@@ -187,7 +189,12 @@ public class HtspFileInputStream extends InputStream {
         fileOpenRequest.put("method", "fileOpen");
         fileOpenRequest.put("file", mFileName);
 
-        HtspMessage fileOpenResponse = mDispatcher.sendMessage(fileOpenRequest, 5000);
+        HtspMessage fileOpenResponse;
+        try {
+            fileOpenResponse = mDispatcher.sendMessage(fileOpenRequest, 5000);
+        } catch (HtspNotConnectedException e) {
+            throw new IOException("Failed to send fileOpen request", e);
+        }
 
         if (fileOpenResponse == null) {
             throw new IOException("Failed to receive response to fileOpen request");
@@ -230,7 +237,12 @@ public class HtspFileInputStream extends InputStream {
         if (HtspConstants.DEBUG)
             Log.v(TAG, "Fetching " + size + " bytes of file at offset " + offset);
 
-        HtspMessage fileReadResponse = mDispatcher.sendMessage(fileReadRequest, 5000);
+        HtspMessage fileReadResponse;
+        try {
+            fileReadResponse = mDispatcher.sendMessage(fileReadRequest, 5000);
+        } catch (HtspNotConnectedException e) {
+            throw new IOException("Failed to send fileRead request", e);
+        }
 
         if (fileReadResponse == null) {
             throw new IOException("Failed to receive response to fileRead request");
@@ -249,7 +261,7 @@ public class HtspFileInputStream extends InputStream {
         mBuffer = ByteBuffer.wrap(data);
     }
 
-    private void sendFileClose() {
+    private void sendFileClose() throws IOException {
         Log.v(TAG, "Closing file " + mFileName);
 
         HtspMessage fileCloseRequest = new HtspMessage();
@@ -257,7 +269,11 @@ public class HtspFileInputStream extends InputStream {
         fileCloseRequest.put("method", "fileClose");
         fileCloseRequest.put("id", mFileId);
 
-        // We just go ahead and send the close, if it fails, oh well.
-        mDispatcher.sendMessage(fileCloseRequest);
+        // We just go ahead and send the close without waiting for a response, if it fails, oh well.
+        try {
+            mDispatcher.sendMessage(fileCloseRequest);
+        } catch (HtspNotConnectedException e) {
+            throw new IOException("Failed to send fileClose request", e);
+        }
     }
 }

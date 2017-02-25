@@ -30,6 +30,7 @@ import java.util.Set;
 
 import ie.macinnes.htsp.HtspConnection;
 import ie.macinnes.htsp.HtspMessage;
+import ie.macinnes.htsp.HtspNotConnectedException;
 
 /**
  * Handles Authentication on a HTSP Connection
@@ -152,9 +153,6 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
         if (HANDLED_METHODS.contains(method)) {
             Log.d(TAG, "Authenticator received message with method: " + method);
 
-            if (message.containsKey("error")) {
-                Log.d(TAG, "Authenticator received ERROR: " + message.getString("error"));
-            }
             if (method.equals("hello")) {
                 handleHelloResponse(message);
             } else if (method.equals("authenticate")) {
@@ -182,11 +180,27 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
         message.put("clientname", mConnectionDetails.getClientName());
         message.put("clientversion", mConnectionDetails.getClientVersion());
 
-        mDispatcher.sendMessage(message);
+        try {
+            mDispatcher.sendMessage(message);
+        } catch (HtspNotConnectedException e) {
+            Log.w(TAG, "Authenticator failed, not connected", e);
+            setState(State.FAILED);
+        }
     }
 
     private void handleHelloResponse(HtspMessage responseMessage) {
         Log.i(TAG, "Got hello response");
+
+        if (responseMessage.containsKey("error")) {
+            Log.e(TAG, "Received error response to hello request: " + responseMessage.getString("error"));
+            setState(State.FAILED);
+
+            // Remove myself as a message listener, I'm all done for now.
+            mDispatcher.removeMessageListener(this);
+
+            return;
+        }
+
         Log.i(TAG, "Sending authenticate request");
         HtspMessage message = new HtspMessage();
 
@@ -194,7 +208,17 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
         message.put("username", mConnectionDetails.getUsername());
         message.put("digest", calculateDigest(responseMessage.getByteArray("challenge")));
 
-        mDispatcher.sendMessage(message);
+        try {
+            mDispatcher.sendMessage(message);
+        } catch (HtspNotConnectedException e) {
+            Log.w(TAG, "Authenticator failed, not connected", e);
+            setState(State.FAILED);
+
+            // Remove myself as a message listener, I'm all done for now.
+            mDispatcher.removeMessageListener(this);
+
+            return;
+        }
     }
 
     private void handleAuthenticateResponse(HtspMessage responseMessage) {
@@ -204,7 +228,7 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
         mDispatcher.removeMessageListener(this);
 
         if (responseMessage.containsKey("error")) {
-            Log.e(TAG, "Received error response to authenticate request");
+            Log.e(TAG, "Received error response to authenticate request: " + responseMessage.getString("error"));
             setState(State.FAILED);
         } else if (responseMessage.getBoolean("noaccess", false)) {
             Log.w(TAG, "Authenticator failed, likely bad username/password");
