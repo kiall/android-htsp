@@ -62,7 +62,7 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
         // Keep reading until we have the entire message
         if (buffer.limit() < fullLength) {
             if (HtspConstants.DEBUG)
-                Log.d(TAG, "Waiting for more data, don't have enough yet. Need: " + fullLength + " bytes / Have: " + buffer.limit() + " bytes");
+                Log.v(TAG, "Waiting for more data, don't have enough yet. Need: " + fullLength + " bytes / Have: " + buffer.limit() + " bytes");
             return null;
         }
 
