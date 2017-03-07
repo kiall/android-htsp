@@ -25,6 +25,7 @@ import java.util.Map;
 
 public class HtspMessageSerializer implements HtspMessage.Serializer {
     private static final String TAG = HtspMessageSerializer.class.getSimpleName();
+    private static final boolean DEBUG = false;
 
     private static final byte FIELD_MAP = 1;
     private static final byte FIELD_S64 = 2;
@@ -52,8 +53,9 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
         int length = (int) bin2long(lenBytes);
         int fullLength = length + 4;
 
-        if (HtspConstants.DEBUG)
+        if (DEBUG) {
             Log.v(TAG, "Reading message of length " + fullLength + " from buffer");
+        }
 
         if (buffer.capacity() < fullLength) {
             throw new RuntimeException("Message exceeds buffer capacity: " + fullLength);
@@ -61,8 +63,9 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
 
         // Keep reading until we have the entire message
         if (buffer.limit() < fullLength) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Waiting for more data, don't have enough yet. Need: " + fullLength + " bytes / Have: " + buffer.limit() + " bytes");
+            }
             return null;
         }
 
@@ -131,28 +134,33 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
 
             // Deserialize the Value
             if (fieldType == FIELD_STR) {
-                if (HtspConstants.DEBUG)
+                if (DEBUG) {
                     Log.v(TAG, "Deserializaing a STR with key " + key);
+                }
                 value = new String(valueBytes);
 
             } else if (fieldType == FIELD_S64) {
-                if (HtspConstants.DEBUG)
+                if (DEBUG) {
                     Log.v(TAG, "Deserializaing a S64 with key " + key + " and valueBytes length " + valueBytes.length);
+                }
                 value = toBigInteger(valueBytes);
 
             } else if (fieldType == FIELD_MAP) {
-                if (HtspConstants.DEBUG)
+                if (DEBUG) {
                     Log.v(TAG, "Deserializaing a MAP with key " + key);
+                }
                 value = deserialize(ByteBuffer.wrap(valueBytes));
 
             } else if (fieldType == FIELD_LIST) {
-                if (HtspConstants.DEBUG)
+                if (DEBUG) {
                     Log.v(TAG, "Deserializaing a LIST with key " + key);
+                }
                 value = new ArrayList<>(deserialize(ByteBuffer.wrap(valueBytes)).values());
 
             } else if (fieldType == FIELD_BIN) {
-                if (HtspConstants.DEBUG)
+                if (DEBUG) {
                     Log.v(TAG, "Deserializaing a BIN with key " + key);
+                }
                 value = valueBytes;
 
             } else {
@@ -190,38 +198,45 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
             // Ignore and do nothing
             return;
         } else if (value instanceof String) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a STR with key " + key + " value " + value);
+            }
             buffer.put(FIELD_STR);
             valueBytes.put(((String) value).getBytes());
         } else if (value instanceof BigInteger) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a S64b with key " + key + " value " + value);
+            }
             buffer.put(FIELD_S64);
             valueBytes.put(toByteArray((BigInteger) value));
         } else if (value instanceof Integer) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a S64i with key " + key + " value " + value);
+            }
             buffer.put(FIELD_S64);
             valueBytes.put(toByteArray(BigInteger.valueOf((Integer) value)));
         } else if (value instanceof Long) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a S64l with key " + key + " value " + value);
+            }
             buffer.put(FIELD_S64);
             valueBytes.put(toByteArray(BigInteger.valueOf((Long) value)));
         } else if (value instanceof Map) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a MAP with key " + key);
+            }
             buffer.put(FIELD_MAP);
             serialize(valueBytes, (Map<String, Object>) value);
         } else if (value instanceof byte[]) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a BIN with key " + key);
+            }
             buffer.put(FIELD_BIN);
             valueBytes.put((byte[]) value);
         } else if (value instanceof Iterable) {
-            if (HtspConstants.DEBUG)
+            if (DEBUG) {
                 Log.v(TAG, "Serializaing a LIST with key " + key);
+            }
             buffer.put(FIELD_LIST);
             serialize(valueBytes, (Iterable<?>) value);
         } else {
