@@ -76,6 +76,8 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     public void subscribe(long channelId, String profile) throws HtspNotConnectedException {
+        Log.i(TAG, "Requesting subscription to channel " + mChannelId);
+
         if (!mIsSubscribed) {
             mDispatcher.addMessageListener(this);
         }
@@ -99,6 +101,8 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     public void unsubscribe() {
+        Log.i(TAG, "Requesting unsubscription from channel " + mChannelId);
+
         mIsSubscribed = false;
 
         mDispatcher.removeMessageListener(this);
@@ -123,7 +127,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     // HtspMessage.Listener Methods
     @Override
     public void onMessage(@NonNull HtspMessage message) {
-        final String method = message.getString("method");
+        final String method = message.getString("method", null);
 
         if (HANDLED_METHODS.contains(method)) {
             if (method.equals("subscriptionStart")) {
