@@ -37,10 +37,10 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
     private static final Set<String> HANDLED_METHODS = new HashSet<>(Arrays.asList(new String[]{
             "subscriptionStart", "subscriptionStatus", "subscriptionStop",
-            "muxpkt",
+            "queueStatus", "muxpkt",
 
             // "subscriptionGrace", "subscriptionSkip", "subscriptionSpeed",
-            // "queueStatus", "signalStatus", "timeshiftStatus"
+            // "signalStatus", "timeshiftStatus"
     }));
 
     private static final AtomicInteger mSubscriptionCount = new AtomicInteger();
@@ -52,6 +52,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         void onSubscriptionStart(@NonNull HtspMessage message);
         void onSubscriptionStatus(@NonNull HtspMessage message);
         void onSubscriptionStop(@NonNull HtspMessage message);
+        void onQueueStatus(@NonNull HtspMessage message);
         void onMuxpkt(@NonNull HtspMessage message);
     }
 
@@ -136,6 +137,8 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
                 mListener.onSubscriptionStatus(message);
             } else if (method.equals("subscriptionStop")) {
                 mListener.onSubscriptionStop(message);
+            } else if (method.equals("queueStatus")) {
+                mListener.onQueueStatus(message);
             } else if (method.equals("muxpkt")) {
                 mListener.onMuxpkt(message);
             }
