@@ -123,6 +123,10 @@ public class SimpleHtspConnection implements HtspMessage.Dispatcher, HtspConnect
         mConnection.addConnectionListener(listener);
     }
 
+    public void removeConnectionListener(HtspConnection.Listener listener) {
+        mConnection.removeConnectionListener(listener);
+    }
+
     public void addAuthenticationListener(Authenticator.Listener listener) {
         mAuthenticator.addAuthenticationListener(listener);
     }
