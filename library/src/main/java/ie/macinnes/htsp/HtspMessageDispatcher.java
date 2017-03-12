@@ -21,7 +21,9 @@ import android.util.Log;
 import android.util.LongSparseArray;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +41,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     private static final AtomicInteger sSequence = new AtomicInteger();
 
     private final List<HtspMessage.Listener> mListeners = new ArrayList<>();
+    private final Object mListenersSynchronizationObject = new Object();
     private final Queue<HtspMessage> mQueue = new ConcurrentLinkedQueue<>();
 
     private static final LongSparseArray<String> sMessageResponseMethodsBySequence = new LongSparseArray<>();
@@ -54,7 +57,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     // HtspMessage.DispatcherInternal Methods
     @Override
     public void addMessageListener(HtspMessage.Listener listener) {
-        synchronized (mListeners) {
+        synchronized (mListenersSynchronizationObject) {
             if (mListeners.contains(listener)) {
                 Log.w(TAG, "Attempted to add duplicate message listener");
                 return;
@@ -65,7 +68,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
 
     @Override
     public void removeMessageListener(HtspMessage.Listener listener) {
-        synchronized (mListeners) {
+        synchronized (mListenersSynchronizationObject) {
             if (!mListeners.contains(listener)) {
                 Log.w(TAG, "Attempted to remove non existing message listener");
                 return;
@@ -172,7 +175,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
             }
         }
 
-        synchronized (mListeners) {
+        synchronized (mListenersSynchronizationObject) {
             for (final HtspMessage.Listener listener : mListeners) {
                 Handler handler = listener.getHandler();
 
