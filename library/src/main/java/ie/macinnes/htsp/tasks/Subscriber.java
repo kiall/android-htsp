@@ -145,6 +145,12 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         final String method = message.getString("method", null);
 
         if (HANDLED_METHODS.contains(method)) {
+            final int subscriptionId = message.getInteger("subscriptionId");
+
+            if (subscriptionId != mSubscriptionId) {
+                // This message relates to a different subscription, don't handle it
+                return;
+            }
             if (method.equals("subscriptionStart")) {
                 mListener.onSubscriptionStart(message);
             } else if (method.equals("subscriptionStatus")) {
