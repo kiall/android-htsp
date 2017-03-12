@@ -64,7 +64,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     private final Listener mListener;
     private final int mSubscriptionId;
 
-    private final Timer mTimer;
+    private Timer mTimer;
     private HtspMessage mQueueStatus;
     private HtspMessage mSignalStatus;
 
@@ -78,7 +78,6 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         mListener = listener;
 
         mSubscriptionId = mSubscriptionCount.incrementAndGet();
-        mTimer = new Timer();
     }
 
     public void subscribe(long channelId) throws HtspNotConnectedException {
@@ -109,14 +108,19 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
         mIsSubscribed = true;
 
+        mTimer = new Timer();
         mTimer.scheduleAtFixedRate(new StatsTimerTask(), STATS_INTERVAL, STATS_INTERVAL);
     }
 
     public void unsubscribe() {
         Log.i(TAG, "Requesting unsubscription from channel " + mChannelId);
 
-        mTimer.cancel();
-        mTimer.purge();
+
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer.purge();
+            mTimer = null;
+        }
 
         mIsSubscribed = false;
 
