@@ -117,6 +117,15 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
             buffer.get(valueLengthBytes);
             valueLength = bin2long(valueLengthBytes);
 
+            // 50000000 is ~50MB, aka improbably large. Without this guard, we'll get a series of
+            // OutOfMemoryError crash reports, which don't group nicely as the values are always
+            // different. This makes it hard to understand the extent of the issue or begin tracing
+            // the bug (it may even be a TVHeadend bug?)
+            if (valueLength > 50000000) {
+                Log.e(TAG, "Attempted to deserialize an improbably large field (" + valueLength + " bytes)");
+                throw new RuntimeException("Attempted to deserialize an improbably large field");
+            }
+
             // Deserialize the Key
             if (keyLength == 0) {
                 // Working on a list...
