@@ -151,21 +151,29 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
                 // This message relates to a different subscription, don't handle it
                 return;
             }
-            if (method.equals("subscriptionStart")) {
-                mListener.onSubscriptionStart(message);
-            } else if (method.equals("subscriptionStatus")) {
-                onSubscriptionStatus(message);
-                mListener.onSubscriptionStatus(message);
-            } else if (method.equals("subscriptionStop")) {
-                mListener.onSubscriptionStop(message);
-            } else if (method.equals("queueStatus")) {
-                onQueueStatus(message);
-                mListener.onQueueStatus(message);
-            } else if (method.equals("signalStatus")) {
-                onSignalStatus(message);
-                mListener.onSignalStatus(message);
-            } else if (method.equals("muxpkt")) {
-                mListener.onMuxpkt(message);
+
+            switch (method) {
+                case "subscriptionStart":
+                    mListener.onSubscriptionStart(message);
+                    break;
+                case "subscriptionStatus":
+                    onSubscriptionStatus(message);
+                    mListener.onSubscriptionStatus(message);
+                    break;
+                case "subscriptionStop":
+                    mListener.onSubscriptionStop(message);
+                    break;
+                case "queueStatus":
+                    onQueueStatus(message);
+                    mListener.onQueueStatus(message);
+                    break;
+                case "signalStatus":
+                    onSignalStatus(message);
+                    mListener.onSignalStatus(message);
+                    break;
+                case "muxpkt":
+                    mListener.onMuxpkt(message);
+                    break;
             }
         }
     }
