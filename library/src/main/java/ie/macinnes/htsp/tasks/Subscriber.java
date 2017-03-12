@@ -23,6 +23,8 @@ import android.util.Log;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ie.macinnes.htsp.HtspMessage;
@@ -34,10 +36,11 @@ import ie.macinnes.htsp.HtspNotConnectedException;
  */
 public class Subscriber implements HtspMessage.Listener, Authenticator.Listener {
     private static final String TAG = Subscriber.class.getSimpleName();
+    private static final int STATS_INTERVAL = 10000;
 
     private static final Set<String> HANDLED_METHODS = new HashSet<>(Arrays.asList(new String[]{
             "subscriptionStart", "subscriptionStatus", "subscriptionStop",
-            "queueStatus", "muxpkt",
+            "queueStatus", "signalStatus", "muxpkt",
 
             // "subscriptionGrace", "subscriptionSkip", "subscriptionSpeed",
             // "signalStatus", "timeshiftStatus"
@@ -53,12 +56,17 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         void onSubscriptionStatus(@NonNull HtspMessage message);
         void onSubscriptionStop(@NonNull HtspMessage message);
         void onQueueStatus(@NonNull HtspMessage message);
+        void onSignalStatus(@NonNull HtspMessage message);
         void onMuxpkt(@NonNull HtspMessage message);
     }
 
     private final HtspMessage.Dispatcher mDispatcher;
     private final Listener mListener;
     private final int mSubscriptionId;
+
+    private final Timer mTimer;
+    private HtspMessage mQueueStatus;
+    private HtspMessage mSignalStatus;
 
     private long mChannelId;
     private String mProfile;
@@ -69,7 +77,8 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         mDispatcher = dispatcher;
         mListener = listener;
 
-        mSubscriptionId = mSubscriptionCount.getAndIncrement();
+        mSubscriptionId = mSubscriptionCount.incrementAndGet();
+        mTimer = new Timer();
     }
 
     public void subscribe(long channelId) throws HtspNotConnectedException {
@@ -99,10 +108,15 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         mProfile = profile;
 
         mIsSubscribed = true;
+
+        mTimer.scheduleAtFixedRate(new StatsTimerTask(), STATS_INTERVAL, STATS_INTERVAL);
     }
 
     public void unsubscribe() {
         Log.i(TAG, "Requesting unsubscription from channel " + mChannelId);
+
+        mTimer.cancel();
+        mTimer.purge();
 
         mIsSubscribed = false;
 
@@ -134,11 +148,16 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
             if (method.equals("subscriptionStart")) {
                 mListener.onSubscriptionStart(message);
             } else if (method.equals("subscriptionStatus")) {
+                onSubscriptionStatus(message);
                 mListener.onSubscriptionStatus(message);
             } else if (method.equals("subscriptionStop")) {
                 mListener.onSubscriptionStop(message);
             } else if (method.equals("queueStatus")) {
+                onQueueStatus(message);
                 mListener.onQueueStatus(message);
+            } else if (method.equals("signalStatus")) {
+                onSignalStatus(message);
+                mListener.onSignalStatus(message);
             } else if (method.equals("muxpkt")) {
                 mListener.onMuxpkt(message);
             }
@@ -155,6 +174,106 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
             } catch (HtspNotConnectedException e) {
                 Log.e(TAG, "Resubscribing to channel failed, not connected");
             }
+        }
+    }
+
+    // Misc Internal Methods
+    private void onSubscriptionStatus(@NonNull HtspMessage message) {
+        final int subscriptionId = message.getInteger("subscriptionId");
+        final String status = message.getString("status", null);
+        final String subscriptionError = message.getString("subscriptionError", null);
+
+        if (status != null || subscriptionError != null) {
+            StringBuilder builder = new StringBuilder()
+                    .append("Subscription Status:")
+                    .append(" S: ").append(subscriptionId);
+
+            if (status != null) {
+                builder.append(" Status: ").append(status);
+            }
+
+            if (subscriptionError != null) {
+                builder.append(" Error: ").append(subscriptionError);
+            }
+
+            Log.w(TAG, builder.toString());
+        }
+    }
+
+    private void onQueueStatus(@NonNull HtspMessage message) {
+        mQueueStatus = message;
+    }
+
+    private void onSignalStatus(@NonNull HtspMessage message) {
+        mSignalStatus = message;
+    }
+
+    private class StatsTimerTask extends TimerTask {
+        @Override
+        public void run() {
+            if (mQueueStatus != null) {
+                logQueueStatus();
+            }
+
+            if (mSignalStatus != null) {
+                logSignalStatus();
+            }
+        }
+
+        private void logQueueStatus() {
+            final int subscriptionId = mQueueStatus.getInteger("subscriptionId");
+            final int packets = mQueueStatus.getInteger("packets");
+            final int bytes = mQueueStatus.getInteger("bytes");
+            final int errors = mQueueStatus.getInteger("errors", 0);
+            final long delay = mQueueStatus.getLong("delay");
+            final int bDrops = mQueueStatus.getInteger("Bdrops");
+            final int pDrops = mQueueStatus.getInteger("Pdrops");
+            final int iDrops = mQueueStatus.getInteger("Idrops");
+
+            StringBuilder builder = new StringBuilder()
+                    .append("Queue Status:")
+                    .append(" S: ").append(subscriptionId)
+                    .append(" P: ").append(packets)
+                    .append(" B: ").append(bytes)
+                    .append(" E: ").append(errors)
+                    .append(" D: ").append(delay)
+                    .append(" bD: ").append(bDrops)
+                    .append(" pD: ").append(pDrops)
+                    .append(" iD: ").append(iDrops);
+
+            Log.i(TAG, builder.toString());
+        }
+
+        private void logSignalStatus() {
+            final int subscriptionId = mSignalStatus.getInteger("subscriptionId");
+            final String feStatus = mSignalStatus.getString("feStatus");
+            final int feSNR = mSignalStatus.getInteger("feSNR", -1);
+            final int feSignal = mSignalStatus.getInteger("feSignal", -1);
+            final int feBER = mSignalStatus.getInteger("feBER", -1);
+            final int feUNC = mSignalStatus.getInteger("feUNC", -1);
+
+            StringBuilder builder = new StringBuilder()
+                    .append("Signal Status:")
+                    .append(" S: ").append(subscriptionId)
+                    .append(" feStatus: ").append(feStatus);
+
+            if (feSNR != -1) {
+                builder.append(" feSNR: ").append(feSNR);
+            }
+
+            if (feSignal != -1) {
+                builder.append(" feSignal: ").append(feSignal);
+            }
+
+            if (feBER != -1) {
+                builder.append(" feBER: ").append(feBER);
+            }
+
+            if (feUNC != -1) {
+                builder.append(" feUNC: ").append(feUNC);
+            }
+
+            Log.i(TAG, builder.toString());
         }
     }
 }
