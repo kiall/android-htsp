@@ -108,19 +108,13 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
         mIsSubscribed = true;
 
-        mTimer = new Timer();
-        mTimer.scheduleAtFixedRate(new StatsTimerTask(), STATS_INTERVAL, STATS_INTERVAL);
+        startTimer();
     }
 
     public void unsubscribe() {
         Log.i(TAG, "Requesting unsubscription from channel " + mChannelId);
 
-
-        if (mTimer != null) {
-            mTimer.cancel();
-            mTimer.purge();
-            mTimer = null;
-        }
+        cancelTimer();
 
         mIsSubscribed = false;
 
@@ -165,6 +159,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
                     mListener.onSubscriptionStatus(message);
                     break;
                 case "subscriptionStop":
+                    subscriptionStop(message);
                     mListener.onSubscriptionStop(message);
                     break;
                 case "queueStatus":
@@ -218,12 +213,30 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         }
     }
 
+    private void subscriptionStop(@NonNull HtspMessage message) {
+        cancelTimer();
+    }
+
     private void onQueueStatus(@NonNull HtspMessage message) {
         mQueueStatus = message;
     }
 
     private void onSignalStatus(@NonNull HtspMessage message) {
         mSignalStatus = message;
+    }
+
+    private void startTimer() {
+        cancelTimer();
+        mTimer = new Timer();
+        mTimer.scheduleAtFixedRate(new StatsTimerTask(), STATS_INTERVAL, STATS_INTERVAL);
+    }
+
+    private void cancelTimer() {
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer.purge();
+            mTimer = null;
+        }
     }
 
     private class StatsTimerTask extends TimerTask {
