@@ -36,14 +36,15 @@ import ie.macinnes.htsp.HtspNotConnectedException;
  */
 public class Subscriber implements HtspMessage.Listener, Authenticator.Listener {
     private static final String TAG = Subscriber.class.getSimpleName();
+    private static final int INVALID_SUBSCRIPTION_ID = -1;
     private static final int STATS_INTERVAL = 10000;
+    private static final int DEFAULT_TIMESHIFT_PERIOD = 0;
 
     private static final Set<String> HANDLED_METHODS = new HashSet<>(Arrays.asList(new String[]{
             "subscriptionStart", "subscriptionStatus", "subscriptionStop",
-            "queueStatus", "signalStatus", "muxpkt",
-
-            // "subscriptionGrace", "subscriptionSkip", "subscriptionSpeed",
-            // "signalStatus", "timeshiftStatus"
+            "queueStatus", "signalStatus", "timeshiftStatus", "muxpkt",
+            "subscriptionSkip", "subscriptionSpeed",
+            // "subscriptionGrace"
     }));
 
     private static final AtomicInteger mSubscriptionCount = new AtomicInteger();
@@ -55,8 +56,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         void onSubscriptionStart(@NonNull HtspMessage message);
         void onSubscriptionStatus(@NonNull HtspMessage message);
         void onSubscriptionStop(@NonNull HtspMessage message);
+        void onSubscriptionSkip(@NonNull HtspMessage message);
+        void onSubscriptionSpeed(@NonNull HtspMessage message);
         void onQueueStatus(@NonNull HtspMessage message);
         void onSignalStatus(@NonNull HtspMessage message);
+        void onTimeshiftStatus(@NonNull HtspMessage message);
         void onMuxpkt(@NonNull HtspMessage message);
     }
 
@@ -67,9 +71,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     private Timer mTimer;
     private HtspMessage mQueueStatus;
     private HtspMessage mSignalStatus;
+    private HtspMessage mTimeshiftStatus;
 
     private long mChannelId;
     private String mProfile;
+    private int mTimeshiftPeriod = 0;
 
     private boolean mIsSubscribed = false;
 
@@ -80,31 +86,51 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         mSubscriptionId = mSubscriptionCount.incrementAndGet();
     }
 
+    public int getSubscriptionId() {
+        return mSubscriptionId;
+    }
+
+    public int getTimeshiftPeriod() {
+        return mTimeshiftPeriod;
+    }
+
     public void subscribe(long channelId) throws HtspNotConnectedException {
-        subscribe(channelId, null);
+        subscribe(channelId, null, DEFAULT_TIMESHIFT_PERIOD);
     }
 
     public void subscribe(long channelId, String profile) throws HtspNotConnectedException {
+        subscribe(channelId, profile, DEFAULT_TIMESHIFT_PERIOD);
+    }
+
+    public void subscribe(long channelId, int timeshiftPeriod) throws HtspNotConnectedException {
+        subscribe(channelId, null, timeshiftPeriod);
+    }
+
+    public void subscribe(long channelId, String profile, int timeshiftPeriod) throws HtspNotConnectedException {
         Log.i(TAG, "Requesting subscription to channel " + mChannelId);
 
         if (!mIsSubscribed) {
             mDispatcher.addMessageListener(this);
         }
 
+        mChannelId = channelId;
+        mProfile = profile;
+
         HtspMessage subscribeRequest = new HtspMessage();
 
         subscribeRequest.put("method", "subscribe");
         subscribeRequest.put("subscriptionId", mSubscriptionId);
         subscribeRequest.put("channelId", channelId);
+        subscribeRequest.put("timeshiftPeriod", timeshiftPeriod);
 
         if (mProfile != null) {
             subscribeRequest.put("profile", mProfile);
         }
 
-        mDispatcher.sendMessage(subscribeRequest);
+        HtspMessage subscribeResponse = mDispatcher.sendMessage(subscribeRequest, 1000);
 
-        mChannelId = channelId;
-        mProfile = profile;
+        mTimeshiftPeriod = subscribeResponse.getInteger("timeshiftPeriod", 0);
+        Log.i(TAG, "Available timeshift period in seconds: " + mTimeshiftPeriod);
 
         mIsSubscribed = true;
 
@@ -132,6 +158,61 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         }
     }
 
+    public void setSpeed(int speed) {
+        Log.i(TAG, "Requesting speed for channel " + mChannelId);
+
+        HtspMessage subscriptionSpeedRequest = new HtspMessage();
+
+        subscriptionSpeedRequest.put("method", "subscriptionSpeed");
+        subscriptionSpeedRequest.put("subscriptionId", mSubscriptionId);
+        subscriptionSpeedRequest.put("speed", speed);
+
+        try {
+            mDispatcher.sendMessage(subscriptionSpeedRequest);
+        } catch (HtspNotConnectedException e) {
+            // Ignore: If we're not connected, TVHeadend has already unsubscribed us
+        }
+    }
+
+    public void pause() {
+        setSpeed(0);
+    }
+
+    public void resume() {
+        setSpeed(100);
+    }
+
+    public void skip(long time) {
+        Log.i(TAG, "Requesting skip for channel " + mChannelId);
+
+        HtspMessage subscriptionSkipRequest = new HtspMessage();
+
+        subscriptionSkipRequest.put("method", "subscriptionSkip");
+        subscriptionSkipRequest.put("subscriptionId", mSubscriptionId);
+        subscriptionSkipRequest.put("time", time);
+
+        try {
+            mDispatcher.sendMessage(subscriptionSkipRequest);
+        } catch (HtspNotConnectedException e) {
+            // Ignore: If we're not connected, TVHeadend has already unsubscribed us
+        }
+    }
+
+    public void live() {
+        Log.i(TAG, "Requesting live for channel " + mChannelId);
+
+        HtspMessage subscriptionLiveRequest = new HtspMessage();
+
+        subscriptionLiveRequest.put("method", "subscriptionLive");
+        subscriptionLiveRequest.put("subscriptionId", mSubscriptionId);
+
+        try {
+            mDispatcher.sendMessage(subscriptionLiveRequest);
+        } catch (HtspNotConnectedException e) {
+            // Ignore: If we're not connected, TVHeadend has already unsubscribed us
+        }
+    }
+
     @Override
     public Handler getHandler() {
         return null;
@@ -143,7 +224,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         final String method = message.getString("method", null);
 
         if (HANDLED_METHODS.contains(method)) {
-            final int subscriptionId = message.getInteger("subscriptionId");
+            final int subscriptionId = message.getInteger("subscriptionId", INVALID_SUBSCRIPTION_ID);
 
             if (subscriptionId != mSubscriptionId) {
                 // This message relates to a different subscription, don't handle it
@@ -159,8 +240,14 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
                     mListener.onSubscriptionStatus(message);
                     break;
                 case "subscriptionStop":
-                    subscriptionStop(message);
+                    onSubscriptionStop(message);
                     mListener.onSubscriptionStop(message);
+                    break;
+                case "subscriptionSkip":
+                    mListener.onSubscriptionSkip(message);
+                    break;
+                case "subscriptionSpeed":
+                    mListener.onSubscriptionSpeed(message);
                     break;
                 case "queueStatus":
                     onQueueStatus(message);
@@ -169,6 +256,10 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
                 case "signalStatus":
                     onSignalStatus(message);
                     mListener.onSignalStatus(message);
+                    break;
+                case "timeshiftStatus":
+                    onTimeshiftStatus(message);
+                    mListener.onTimeshiftStatus(message);
                     break;
                 case "muxpkt":
                     mListener.onMuxpkt(message);
@@ -183,7 +274,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         if (mIsSubscribed && state == Authenticator.State.AUTHENTICATED) {
             Log.w(TAG, "Resubscribing to channel " + mChannelId);
             try {
-                subscribe(mChannelId, mProfile);
+                subscribe(mChannelId, mProfile, mTimeshiftPeriod);
             } catch (HtspNotConnectedException e) {
                 Log.e(TAG, "Resubscribing to channel failed, not connected");
             }
@@ -213,7 +304,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         }
     }
 
-    private void subscriptionStop(@NonNull HtspMessage message) {
+    private void onSubscriptionStop(@NonNull HtspMessage message) {
         cancelTimer();
     }
 
@@ -223,6 +314,10 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
     private void onSignalStatus(@NonNull HtspMessage message) {
         mSignalStatus = message;
+    }
+
+    private void onTimeshiftStatus(@NonNull HtspMessage message) {
+        mTimeshiftStatus = message;
     }
 
     private void startTimer() {
@@ -243,11 +338,27 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         @Override
         public void run() {
             if (mQueueStatus != null) {
-                logQueueStatus();
+                try {
+                    logQueueStatus();
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to log queue status", e);
+                }
             }
 
             if (mSignalStatus != null) {
-                logSignalStatus();
+                try {
+                    logSignalStatus();
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to log signal status", e);
+                }
+            }
+
+            if (mTimeshiftStatus != null) {
+                try {
+                    logTimeshiftStatus();
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to log timeshift status", e);
+                }
             }
         }
 
@@ -302,6 +413,30 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
             if (feUNC != -1) {
                 builder.append(" feUNC: ").append(feUNC);
+            }
+
+            Log.i(TAG, builder.toString());
+        }
+
+        private void logTimeshiftStatus() {
+            final int subscriptionId = mTimeshiftStatus.getInteger("subscriptionId");
+            final int full = mTimeshiftStatus.getInteger("full");
+            final long shift = mTimeshiftStatus.getLong("shift");
+            final long start = mTimeshiftStatus.getLong("start", -1);
+            final long end = mTimeshiftStatus.getLong("end", -1);
+
+            StringBuilder builder = new StringBuilder()
+                    .append("Timeshift Status:")
+                    .append(" S: ").append(subscriptionId)
+                    .append(" full: ").append(full)
+                    .append(" shift: ").append(shift);
+
+            if (start != -1) {
+                builder.append(" start: ").append(start);
+            }
+
+            if (end != -1) {
+                builder.append(" end: ").append(end);
             }
 
             Log.i(TAG, builder.toString());
