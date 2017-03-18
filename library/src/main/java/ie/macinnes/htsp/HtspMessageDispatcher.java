@@ -39,7 +39,6 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     private static final AtomicInteger sSequence = new AtomicInteger();
 
     private final Set<HtspMessage.Listener> mListeners = new CopyOnWriteArraySet<>();
-    private final Object mListenersSynchronizationObject = new Object();
     private final Queue<HtspMessage> mQueue = new ConcurrentLinkedQueue<>();
 
     private static final LongSparseArray<String> sMessageResponseMethodsBySequence = new LongSparseArray<>();
@@ -55,24 +54,20 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     // HtspMessage.DispatcherInternal Methods
     @Override
     public void addMessageListener(HtspMessage.Listener listener) {
-        synchronized (mListenersSynchronizationObject) {
-            if (mListeners.contains(listener)) {
-                Log.w(TAG, "Attempted to add duplicate message listener");
-                return;
-            }
-            mListeners.add(listener);
+        if (mListeners.contains(listener)) {
+            Log.w(TAG, "Attempted to add duplicate message listener");
+            return;
         }
+        mListeners.add(listener);
     }
 
     @Override
     public void removeMessageListener(HtspMessage.Listener listener) {
-        synchronized (mListenersSynchronizationObject) {
-            if (!mListeners.contains(listener)) {
-                Log.w(TAG, "Attempted to remove non existing message listener");
-                return;
-            }
-            mListeners.remove(listener);
+        if (!mListeners.contains(listener)) {
+            Log.w(TAG, "Attempted to remove non existing message listener");
+            return;
         }
+        mListeners.remove(listener);
     }
 
     @Override
@@ -173,20 +168,18 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
             }
         }
 
-        synchronized (mListenersSynchronizationObject) {
-            for (final HtspMessage.Listener listener : mListeners) {
-                Handler handler = listener.getHandler();
+        for (final HtspMessage.Listener listener : mListeners) {
+            Handler handler = listener.getHandler();
 
-                if (handler == null) {
-                    listener.onMessage(message);
-                } else {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            listener.onMessage(message);
-                        }
-                    });
-                }
+            if (handler == null) {
+                listener.onMessage(message);
+            } else {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        listener.onMessage(message);
+                    }
+                });
             }
         }
     }
