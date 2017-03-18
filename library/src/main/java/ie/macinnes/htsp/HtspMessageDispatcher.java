@@ -20,12 +20,10 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.LongSparseArray;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -40,7 +38,7 @@ public class HtspMessageDispatcher implements HtspMessage.DispatcherInternal, Ht
     private static final String TAG = HtspMessageDispatcher.class.getSimpleName();
     private static final AtomicInteger sSequence = new AtomicInteger();
 
-    private final List<HtspMessage.Listener> mListeners = new ArrayList<>();
+    private final Set<HtspMessage.Listener> mListeners = new CopyOnWriteArraySet<>();
     private final Object mListenersSynchronizationObject = new Object();
     private final Queue<HtspMessage> mQueue = new ConcurrentLinkedQueue<>();
 

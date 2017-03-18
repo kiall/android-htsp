@@ -22,11 +22,10 @@ import android.util.Log;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import ie.macinnes.htsp.HtspConnection;
 import ie.macinnes.htsp.HtspMessage;
@@ -85,7 +84,7 @@ public class Authenticator implements HtspMessage.Listener, HtspConnection.Liste
         mConnectionDetails = connectionDetails;
     }
 
-    private final List<Listener> mListeners = new ArrayList<>();
+    private final Set<Listener> mListeners = new CopyOnWriteArraySet<>();
 
     public void addAuthenticationListener(Listener listener) {
         if (mListeners.contains(listener)) {

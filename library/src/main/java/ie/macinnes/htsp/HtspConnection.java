@@ -28,10 +28,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnresolvedAddressException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -164,7 +163,7 @@ public class HtspConnection implements Runnable {
     private final Lock mLock = new ReentrantLock();
     private State mState = State.CLOSED;
 
-    private final List<Listener> mListeners = new ArrayList<>();
+    private final Set<Listener> mListeners = new CopyOnWriteArraySet<>();
     private SocketChannel mSocketChannel;
     private Selector mSelector;
 
