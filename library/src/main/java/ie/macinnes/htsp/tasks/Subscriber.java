@@ -25,11 +25,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ie.macinnes.htsp.HtspConnection;
 import ie.macinnes.htsp.HtspMessage;
 import ie.macinnes.htsp.HtspNotConnectedException;
-
 
 /**
  * Handles a Subscription on a HTSP Connection
@@ -65,7 +66,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     private final HtspMessage.Dispatcher mDispatcher;
-    private final Listener mListener;
+    private final Set<Listener> mListeners = new CopyOnWriteArraySet<>();
     private final int mSubscriptionId;
 
     private Timer mTimer;
@@ -79,19 +80,30 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
     private boolean mIsSubscribed = false;
 
-    public Subscriber(@NonNull HtspMessage.Dispatcher dispatcher, @NonNull Listener listener) {
+    public Subscriber(@NonNull HtspMessage.Dispatcher dispatcher) {
         mDispatcher = dispatcher;
-        mListener = listener;
 
         mSubscriptionId = mSubscriptionCount.incrementAndGet();
     }
 
-    public int getSubscriptionId() {
-        return mSubscriptionId;
+    public void addSubscriptionListener(Listener listener) {
+        if (mListeners.contains(listener)) {
+            Log.w(TAG, "Attempted to add duplicate subscription listener");
+            return;
+        }
+        mListeners.add(listener);
     }
 
-    public int getTimeshiftPeriod() {
-        return mTimeshiftPeriod;
+    public void removeSubscriptionListener(Listener listener) {
+        if (!mListeners.contains(listener)) {
+            Log.w(TAG, "Attempted to remove non existing subscription listener");
+            return;
+        }
+        mListeners.remove(listener);
+    }
+
+    public int getSubscriptionId() {
+        return mSubscriptionId;
     }
 
     public void subscribe(long channelId) throws HtspNotConnectedException {
@@ -233,36 +245,54 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
             switch (method) {
                 case "subscriptionStart":
-                    mListener.onSubscriptionStart(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSubscriptionStart(message);
+                    }
                     break;
                 case "subscriptionStatus":
                     onSubscriptionStatus(message);
-                    mListener.onSubscriptionStatus(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSubscriptionStatus(message);
+                    }
                     break;
                 case "subscriptionStop":
                     onSubscriptionStop(message);
-                    mListener.onSubscriptionStop(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSubscriptionStop(message);
+                    }
                     break;
                 case "subscriptionSkip":
-                    mListener.onSubscriptionSkip(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSubscriptionSkip(message);
+                    }
                     break;
                 case "subscriptionSpeed":
-                    mListener.onSubscriptionSpeed(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSubscriptionSpeed(message);
+                    }
                     break;
                 case "queueStatus":
                     onQueueStatus(message);
-                    mListener.onQueueStatus(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onQueueStatus(message);
+                    }
                     break;
                 case "signalStatus":
                     onSignalStatus(message);
-                    mListener.onSignalStatus(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onSignalStatus(message);
+                    }
                     break;
                 case "timeshiftStatus":
                     onTimeshiftStatus(message);
-                    mListener.onTimeshiftStatus(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onTimeshiftStatus(message);
+                    }
                     break;
                 case "muxpkt":
-                    mListener.onMuxpkt(message);
+                    for (final Listener listener : mListeners) {
+                        listener.onMuxpkt(message);
+                    }
                     break;
             }
         }
