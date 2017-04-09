@@ -176,7 +176,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     public void setSpeed(int speed) {
-        Log.i(TAG, "Requesting speed for channel " + mChannelId);
+        Log.i(TAG, "Requesting speed " + speed + " for channel " + mChannelId);
 
         HtspMessage subscriptionSpeedRequest = new HtspMessage();
 

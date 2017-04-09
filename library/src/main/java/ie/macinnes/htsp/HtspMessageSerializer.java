@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2017 Kiall Mac Innes <kiall@macinnes.ie>
  *
@@ -13,7 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */package ie.macinnes.htsp;
+ */
+package ie.macinnes.htsp;
 
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -21,6 +21,7 @@ import android.util.Log;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 public class HtspMessageSerializer implements HtspMessage.Serializer {
@@ -296,11 +297,21 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
     }
 
     private static byte[] toByteArray(BigInteger big) {
+        // Convert to a byte array
         byte[] b = big.toByteArray();
-        byte b1[] = new byte[b.length];
 
+        // Reverse the byte order
+        byte b1[] = new byte[b.length];
         for (int i = 0; i < b.length; i++) {
             b1[i] = b[b.length - 1 - i];
+        }
+
+        // Negative numbers in HTSP are weird
+        if (big.compareTo(BigInteger.ZERO) < 0) {
+            byte[] b3 = new byte[8];
+            Arrays.fill(b3, (byte) 0xFF);
+            System.arraycopy(b1, 0, b3, 0, b1.length - 1);
+            return b3;
         }
 
         return b1;
@@ -309,10 +320,12 @@ public class HtspMessageSerializer implements HtspMessage.Serializer {
     private static BigInteger toBigInteger(byte b[]) {
         byte b1[] = new byte[b.length + 1];
 
+        // Reverse the order
         for (int i = 0; i < b.length; i++) {
             b1[i + 1] = b[b.length - 1 - i];
         }
 
+        // Convert to a BigInteger
         return new BigInteger(b1);
     }
 }
