@@ -28,7 +28,6 @@ import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import ie.macinnes.htsp.HtspConnection;
 import ie.macinnes.htsp.HtspMessage;
 import ie.macinnes.htsp.HtspNotConnectedException;
 
@@ -37,9 +36,14 @@ import ie.macinnes.htsp.HtspNotConnectedException;
  */
 public class Subscriber implements HtspMessage.Listener, Authenticator.Listener {
     private static final String TAG = Subscriber.class.getSimpleName();
+
     private static final int INVALID_SUBSCRIPTION_ID = -1;
+    private static final int INVALID_START_TIME = -1;
     private static final int STATS_INTERVAL = 10000;
     private static final int DEFAULT_TIMESHIFT_PERIOD = 0;
+
+    // Copy of TvInputManager.TIME_SHIFT_INVALID_TIME, available on M+ Only.
+    public static final long INVALID_TIMESHIFT_TIME = -9223372036854775808L;
 
     private static final Set<String> HANDLED_METHODS = new HashSet<>(Arrays.asList(new String[]{
             "subscriptionStart", "subscriptionStatus", "subscriptionStop",
@@ -77,6 +81,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     private long mChannelId;
     private String mProfile;
     private int mTimeshiftPeriod = 0;
+    private long mStartTime = INVALID_START_TIME;
 
     private boolean mIsSubscribed = false;
 
@@ -202,6 +207,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         subscriptionSkipRequest.put("method", "subscriptionSkip");
         subscriptionSkipRequest.put("subscriptionId", mSubscriptionId);
         subscriptionSkipRequest.put("time", time);
+        subscriptionSkipRequest.put("absolute", 1);
 
         try {
             mDispatcher.sendMessage(subscriptionSkipRequest);
@@ -225,6 +231,32 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
         }
     }
 
+    public long getTimeshiftOffsetPts() {
+        if (mTimeshiftStatus != null) {
+            return mTimeshiftStatus.getLong("shift") * -1;
+        }
+
+        return INVALID_TIMESHIFT_TIME;
+    }
+
+    public long getTimeshiftStartPts() {
+        if (mTimeshiftStatus != null) {
+            return mTimeshiftStatus.getLong("start", INVALID_TIMESHIFT_TIME);
+        }
+
+        return INVALID_TIMESHIFT_TIME;
+    }
+
+    public long getTimeshiftStartTime() {
+        long startPts = getTimeshiftStartPts();
+
+        if (startPts == INVALID_TIMESHIFT_TIME || mStartTime == INVALID_START_TIME) {
+            return INVALID_TIMESHIFT_TIME;
+        }
+
+        return mStartTime + startPts;
+    }
+
     @Override
     public Handler getHandler() {
         return null;
@@ -245,6 +277,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
 
             switch (method) {
                 case "subscriptionStart":
+                    onSubscriptionStart(message);
                     for (final Listener listener : mListeners) {
                         listener.onSubscriptionStart(message);
                     }
@@ -312,6 +345,11 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
     }
 
     // Misc Internal Methods
+    private void onSubscriptionStart(@NonNull HtspMessage message) {
+        // TODO: -1000 is a total hack, we're running this about 500ms after the actual start time..
+        mStartTime = (System.currentTimeMillis() * 1000) - 1000;
+    }
+
     private void onSubscriptionStatus(@NonNull HtspMessage message) {
         final int subscriptionId = message.getInteger("subscriptionId");
         final String status = message.getString("status", null);
