@@ -52,6 +52,10 @@ public class HtspFileInputStream extends InputStream {
         sendFileRead(1024000, 0);
     }
 
+    public long getFileSize() {
+        return mFileSize;
+    }
+
     // InputStream Methods
     /**
      * Reads the next byte of data from the input stream. The value byte is
