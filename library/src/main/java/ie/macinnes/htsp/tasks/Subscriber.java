@@ -144,7 +144,7 @@ public class Subscriber implements HtspMessage.Listener, Authenticator.Listener 
             subscribeRequest.put("profile", mProfile);
         }
 
-        HtspMessage subscribeResponse = mDispatcher.sendMessage(subscribeRequest, 1000);
+        HtspMessage subscribeResponse = mDispatcher.sendMessage(subscribeRequest, 5000);
 
         mTimeshiftPeriod = subscribeResponse.getInteger("timeshiftPeriod", 0);
         Log.i(TAG, "Available timeshift period in seconds: " + mTimeshiftPeriod);
