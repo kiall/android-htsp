@@ -15,6 +15,7 @@
  */
 package ie.macinnes.htsp;
 
+import android.net.TrafficStats;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -433,6 +434,8 @@ public class HtspConnection implements Runnable {
 
             try {
                 mSocketChannel = SocketChannel.open();
+                // Tag the Socket for use by Android Debugging Tools
+                TrafficStats.tagSocket(mSocketChannel.socket());
                 mSocketChannel.configureBlocking(false);
                 mSocketChannel.connect(new InetSocketAddress(
                         mConnectionDetails.getHostname(), mConnectionDetails.getPort()));
