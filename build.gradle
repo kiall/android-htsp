@@ -21,7 +21,7 @@ allprojects {
         compileSdkVersion = 25
         targetSdkVersion = 25
         minSdkVersion = 22
-        buildToolsVersion = "25.0.2"
+        buildToolsVersion = "27.0.3"
 
         git = Grgit.open()
         gitVersionName = "${git.describe()}"
