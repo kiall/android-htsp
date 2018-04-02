@@ -4,9 +4,10 @@ import org.ajoberstar.grgit.Grgit
 buildscript {
     repositories {
         jcenter()
+        google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.1'
+        classpath 'com.android.tools.build:gradle:3.1.0'
         classpath 'com.novoda:bintray-release:0.4.0'
         classpath 'org.ajoberstar:grgit:1.4.+'
     }
